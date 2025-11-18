@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Connect Google Calendar</title>
+</head>
+<body>
+  <h1>Connect Google Calendar</h1>
+
+  <p>Enter your Google OAuth credentials:</p>
+
+  <label>Client ID:</label><br>
+  <input id="clientId" type="text" size="50"><br><br>
+
+  <label>Client Secret:</label><br>
+  <input id="clientSecret" type="text" size="50"><br><br>
+
+  <label>Redirect URI:</label><br>
+  <input id="redirectUri" type="text" size="50" placeholder="http://localhost:5000/callback"><br><br>
+
+  <button id="submitBtn">Save Credentials</button>
+
+  <p id="status"></p>
+
+  <script src="app.js"></script>
+</body>
+</html>
