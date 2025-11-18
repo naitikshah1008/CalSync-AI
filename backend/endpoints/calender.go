@@ -16,6 +16,15 @@ type CredentialsPayload struct {
 // GoogleCalendarHandler handles both GET and POST requests for the
 // /api/v1/calendar/google-calendar endpoint.
 func GoogleCalendarHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+	// Handle CORS preflight (very important for POST requests)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	switch r.Method {
 	case http.MethodGet:
 		googleCalendarGet(w, r)
