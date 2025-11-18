@@ -15,7 +15,7 @@ func main() {
 		endpoints.GoogleCalendarHandler,
 	)
 
-	addr := ":8080"
+	addr := ":6000"
 	log.Printf("Server running at http://localhost%v\n", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
