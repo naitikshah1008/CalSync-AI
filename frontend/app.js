@@ -17,7 +17,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
   };
 
   try {
-    const res = await fetch("/api/google/credentials", {
+    const res = await fetch("http://localhost:6000/api/v1/calendar/google-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
