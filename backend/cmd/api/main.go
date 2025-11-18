@@ -10,7 +10,7 @@ import (
 func main() {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/google/credentials", endpoints.GoogleCalendarHandler)
+	mux.HandleFunc("/api/v1/calendar/google-calendar", endpoints.GoogleCalendarHandler)
 
 	addr := ":6000"
 	log.Printf("Server running at http://localhost%v\n", addr)
