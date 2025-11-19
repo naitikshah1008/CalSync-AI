@@ -17,7 +17,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
   };
 
   try {
-    const res = await fetch("http://localhost:8000/api/v1/calendar/google-calendar", {
+    const res = await fetch("http://localhost:8080/api/v1/calendar/google-calendar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -34,4 +34,31 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     console.error(err);
     statusEl.textContent = "Network or server error.";
   }
+});
+
+document.getElementById("oauthBtn").addEventListener("click", async (event) => {
+  event.preventDefault();
+  console.log("OAuth button clicked");
+
+  const res = await fetch("http://localhost:8080/api/v1/calendar/auth-url");
+
+  const text = await res.text();
+  console.log("RAW RESPONSE:", text);
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error("Failed to parse JSON:", e);
+    return;
+  }
+
+  console.log("Parsed data:", data);
+
+  if (!data.auth_url) {
+    console.error("auth_url missing");
+    return;
+  }
+
+  window.location.href = data.auth_url;
 });

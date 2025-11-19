@@ -9,13 +9,14 @@ import (
 
 func initApp() (http.Handler, error) {
 	// 1) init CSV logging
-	if err := internal.InitRequestLogger("backend/logs/requests_log.csv"); err != nil {
+	if err := internal.InitRequestLogger("logs/requests_log.csv"); err != nil {
 		return nil, err
 	}
 
 	// 2) register routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/v1/calendar/google-calendar", endpoints.GoogleCalendarHandler)
+	mux.HandleFunc("/api/v1/calendar/auth-url", endpoints.GoogleOAuthURLHandler)
 
 	// 3) wrap with logging middleware
 	return internal.LoggingMiddleware(mux), nil

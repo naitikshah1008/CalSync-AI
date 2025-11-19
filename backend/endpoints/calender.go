@@ -84,7 +84,7 @@ func googleCalendarPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile("credentials.json", data, 0600); err != nil {
+	if err := os.WriteFile("data/credentials.json", data, 0600); err != nil {
 		http.Error(w, "Failed to save credentials.json", http.StatusInternalServerError)
 		return
 	}
