@@ -38,9 +38,9 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 
 document.getElementById("oauthBtn").addEventListener("click", async (event) => {
   event.preventDefault();
-  console.log("OAuth button clicked");
-
+  console.log("Origin:", window.location.origin);
   const res = await fetch("http://localhost:8080/api/v1/calendar/auth-url");
+  console.log("RESPONSE STATUS:", res.status);
 
   const text = await res.text();
   console.log("RAW RESPONSE:", text);
