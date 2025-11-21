@@ -25,9 +25,7 @@ func InitRequestLogger(path string) error {
 	if err != nil {
 		return err
 	}
-
 	w := csv.NewWriter(f)
-
 	// write header if file is new/empty
 	info, err := f.Stat()
 	if err == nil && info.Size() == 0 {
@@ -42,7 +40,6 @@ func InitRequestLogger(path string) error {
 		})
 		w.Flush()
 	}
-
 	logger = &requestCSVLogger{
 		file:   f,
 		writer: w,
@@ -73,37 +70,29 @@ func paramsToString(m map[string][]string) string {
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-
 		// Only log POSTs? uncomment if you want that:
 		// if r.Method != http.MethodPost {
 		//     next.ServeHTTP(w, r)
 		//     return
 		// }
-
 		// Read body for logging + restore for handler
 		var bodyBytes []byte
 		if r.Body != nil {
 			bodyBytes, _ = io.ReadAll(r.Body)
 			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
-
 		_ = r.ParseForm()
-
 		bodyPreview := string(bodyBytes)
 		const maxBodyLog = 500
 		if len(bodyPreview) > maxBodyLog {
 			bodyPreview = bodyPreview[:maxBodyLog] + "...(truncated)"
 		}
-
 		next.ServeHTTP(w, r)
-
 		if logger == nil {
 			return
 		}
-
 		logger.mu.Lock()
 		defer logger.mu.Unlock()
-
 		_ = logger.writer.Write([]string{
 			time.Now().Format(time.RFC3339),
 			r.Method,

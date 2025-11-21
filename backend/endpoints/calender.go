@@ -60,12 +60,10 @@ func googleCalendarPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
 		return
 	}
-
 	if payload.ClientID == "" || payload.ClientSecret == "" || len(payload.RedirectURIs) == 0 {
 		http.Error(w, "Missing client_id, client_secret, or redirect_uris", http.StatusBadRequest)
 		return
 	}
-
 	credsFile := map[string]any{
 		"installed": map[string]any{
 			"client_id":                   payload.ClientID,
@@ -77,18 +75,15 @@ func googleCalendarPost(w http.ResponseWriter, r *http.Request) {
 			"redirect_uris":               payload.RedirectURIs,
 		},
 	}
-
 	data, err := json.MarshalIndent(credsFile, "", "  ")
 	if err != nil {
 		http.Error(w, "Failed to marshal credentials", http.StatusInternalServerError)
 		return
 	}
-
 	if err := os.WriteFile("data/credentials.json", data, 0600); err != nil {
 		http.Error(w, "Failed to save credentials.json", http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, `{"status":"ok"}`)
