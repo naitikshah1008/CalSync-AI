@@ -86,8 +86,42 @@ func googleCalendarPost(w http.ResponseWriter, r *http.Request) {
 }
 
 func isGoogleCalendarConnected() bool {
-	if _, err := os.Stat("credentials.json"); err != nil {
+	if _, err := os.Stat("data/credentials.json"); err != nil {
 		return false
 	}
 	return true
+}
+
+// simple check for token.json presence
+func isGoogleAuthenticated() bool {
+	if _, err := os.Stat("data/token.json"); err != nil {
+		return false
+	}
+	return true
+}
+
+// /api/v1/calendar/check-status
+func GoogleStatusHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	// CORS preflight
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	configured := isGoogleCalendarConnected()
+	authenticated := isGoogleAuthenticated()
+	resp := map[string]any{
+		"configured":    configured,
+		"authenticated": authenticated,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+	}
 }

@@ -90,7 +90,7 @@ func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// Save token.json
 	data, _ := json.MarshalIndent(token, "", "  ")
-	_ = os.WriteFile("token.json", data, 0600)
+	_ = os.WriteFile("data/token.json", data, 0600)
 	// Respond to user
 	fmt.Fprint(w, `{"status":"token_saved"}`)
 }
