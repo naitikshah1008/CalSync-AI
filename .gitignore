@@ -1,2 +1,4 @@
 backend/credentials.json
 backend/logs/requests_log.csv
+backend/token.json
+backend/data/credentials.json

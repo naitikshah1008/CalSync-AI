@@ -8,13 +8,11 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     statusEl.textContent = "All fields are required.";
     return;
   }
-
   const payload = {
     client_id: clientId,
     client_secret: clientSecret,
     redirect_uris: [redirectUri]
   };
-
   try {
     const res = await fetch("http://localhost:8080/api/v1/calendar/google-calendar", {
       method: "POST",

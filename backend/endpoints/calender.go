@@ -19,7 +19,6 @@ func GoogleCalendarHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-
 	// Handle CORS preflight (very important for POST requests)
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -37,9 +36,7 @@ func GoogleCalendarHandler(w http.ResponseWriter, r *http.Request) {
 
 func googleCalendarGet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
 	connected := isGoogleCalendarConnected()
-
 	response := map[string]any{
 		"connected": connected,
 	}
@@ -48,7 +45,6 @@ func googleCalendarGet(w http.ResponseWriter, r *http.Request) {
 	} else {
 		response["message"] = "Google Calendar credentials found."
 	}
-
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		http.Error(w, "Failed to write response", http.StatusInternalServerError)
 	}
