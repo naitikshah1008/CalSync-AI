@@ -11,10 +11,65 @@
     Connect to Google Calendar
   </button>
 
+  <p id="status"></p>
+
   <script>
-    document.getElementById("connectBtn").addEventListener("click", () => {
-      // Redirect to your existing credential input page
-      window.location.href = "google-connect.html";
+    const statusEl = document.getElementById("status");
+
+    document.getElementById("connectBtn").addEventListener("click", async () => {
+      statusEl.textContent = "Checking Google Calendar status...";
+
+      try {
+        const res = await fetch("http://localhost:8080/api/v1/calendar/check-status");
+        if (!res.ok) {
+          statusEl.textContent = "Error checking status. Redirecting to credential page...";
+          window.location.href = "google-connect.html";
+          return;
+        }
+
+        const data = await res.json();
+        console.log("check-status:", data);
+
+        // 1) Not configured → ask user to enter credentials
+        if (!data.configured) {
+          statusEl.textContent = "Google Calendar not configured. Redirecting to setup page...";
+          window.location.href = "google-connect.html";
+          return;
+        }
+
+        // 2) Configured but not authenticated → go to OAuth
+        if (data.configured && !data.authenticated) {
+          statusEl.textContent = "Credentials found. Redirecting to Google OAuth...";
+          const authRes = await fetch("http://localhost:8080/api/v1/calendar/auth-url");
+          const authText = await authRes.text();
+          let authData;
+          try {
+            authData = JSON.parse(authText);
+          } catch (e) {
+            console.error("Failed to parse auth-url response:", e, authText);
+            statusEl.textContent = "Error getting auth URL.";
+            return;
+          }
+          if (!authData.auth_url) {
+            statusEl.textContent = "auth_url missing in response.";
+            return;
+          }
+          window.location.href = authData.auth_url;
+          return;
+        }
+
+        // 3) Configured + authenticated → go straight to main page
+        if (data.configured && data.authenticated) {
+          statusEl.textContent = "Google Calendar connected. Redirecting to main page...";
+          window.location.href = "main.html";
+          return;
+        }
+
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Network error. Redirecting to credential page...";
+        window.location.href = "google-connect.html";
+      }
     });
   </script>
 </body>
