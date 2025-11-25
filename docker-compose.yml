@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: ./backend
+    container_name: calsync-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend/data:/app/data   # Persist credentials/token
+    restart: always
+
+  frontend:
+    build: ./frontend
+    container_name: calsync-frontend
+    ports:
+      - "8000:80"
+    restart: always
