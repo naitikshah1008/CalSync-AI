@@ -13,6 +13,8 @@ FROM debian:stable-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+
 RUN mkdir -p logs data
 
 COPY --from=build /app/api .
