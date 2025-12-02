@@ -18,6 +18,7 @@ func initApp() (http.Handler, error) {
 	mux.HandleFunc("/api/v1/calendar/auth-url", endpoints.GoogleOAuthURLHandler)
 	mux.HandleFunc("/api/v1/calendar/check-status", endpoints.GoogleStatusHandler)
 	mux.HandleFunc("/api/v1/calendar/events", endpoints.GoogleListEventsHandler)
+	mux.HandleFunc("/api/v1/calendar/events/create", endpoints.GoogleCreateEventHandler)
 	mux.HandleFunc("/callback", endpoints.GoogleOAuthCallbackHandler)
 	// 3) wrap with logging middleware
 	return internal.LoggingMiddleware(mux), nil

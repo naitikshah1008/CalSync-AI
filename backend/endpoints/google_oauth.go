@@ -92,5 +92,5 @@ func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	data, _ := json.MarshalIndent(token, "", "  ")
 	_ = os.WriteFile("data/token.json", data, 0600)
 	// Respond to user
-	fmt.Fprint(w, `{"status":"token_saved"}`)
+	http.Redirect(w, r, "http://localhost:8000/main.html", http.StatusSeeOther)
 }
