@@ -4,6 +4,7 @@ services:
     container_name: calsync-backend
     ports:
       - "8080:8080"
+      # We'll also add MCP port later (e.g. 9000)
     volumes:
       - ./backend/data:/app/data   # Persist credentials/token
     restart: always
@@ -14,3 +15,25 @@ services:
     ports:
       - "8000:80"
     restart: always
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: calsync-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama   # Persist downloaded models
+    restart: always
+
+  brain:
+    build: ./brain
+    container_name: calsync-brain
+    ports:
+      - "5005:5005"
+    depends_on:
+      - ollama
+    restart: always
+
+volumes:
+  ollama-data:
+  
