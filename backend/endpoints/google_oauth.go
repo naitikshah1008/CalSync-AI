@@ -60,7 +60,7 @@ func GoogleOAuthURLHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// State token for security (use a random string later)
 	state := "random-state"
-	authURL := config.AuthCodeURL(state, oauth2.AccessTypeOffline)
+	authURL := config.AuthCodeURL(state, oauth2.AccessTypeOffline, oauth2.SetAuthURLParam("prompt", "consent"))
 	json.NewEncoder(w).Encode(map[string]string{
 		"auth_url": authURL,
 	})
