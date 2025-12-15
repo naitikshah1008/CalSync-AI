@@ -2,86 +2,53 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Main App - Google Calendar</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 20px auto;
-      padding: 10px;
-    }
-    h1, h2 {
-      margin-bottom: 10px;
-    }
-    .section {
-      border: 1px solid #ddd;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 6px;
-    }
-    label {
-      display: block;
-      margin-top: 8px;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 6px;
-      margin-top: 4px;
-      box-sizing: border-box;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 16px;
-      cursor: pointer;
-    }
-    #eventsList {
-      margin-top: 10px;
-    }
-    .event-item {
-      padding: 6px 0;
-      border-bottom: 1px solid #eee;
-    }
-    .event-summary {
-      font-weight: bold;
-    }
-    .status {
-      margin-top: 8px;
-      font-size: 0.9rem;
-    }
-  </style>
+  <title>CalSync AI</title>
 </head>
 <body>
-  <h1>Google Calendar Connected 🎉</h1>
-  <p>You are now connected to Google Calendar.</p>
+  <h1>CalSync AI</h1>
 
-  <!-- Section 1: View upcoming events -->
-  <div class="section">
-    <h2>Upcoming Events (next 7 days)</h2>
+  <!-- ===================== -->
+  <!-- CALENDAR SECTION -->
+  <!-- ===================== -->
+  <section>
+    <h2>My Calendar</h2>
     <button id="refreshEventsBtn">Refresh Events</button>
-    <div id="eventsStatus" class="status"></div>
+    <p id="eventsStatus"></p>
     <div id="eventsList"></div>
-  </div>
+  </section>
 
-  <!-- Section 2: Create a new event -->
-  <div class="section">
-    <h2>Create New Event</h2>
+  <hr />
 
-    <label for="eventSummary">Summary (title):</label>
-    <input id="eventSummary" type="text" placeholder="e.g. Learn Go basics">
+  <!-- ===================== -->
+  <!-- LEARNING PLANNER -->
+  <!-- ===================== -->
+  <section>
+    <h2>Learning Planner</h2>
 
-    <label for="eventDescription">Description:</label>
-    <textarea id="eventDescription" rows="3" placeholder="Optional description"></textarea>
+    <h3>1. Enter Learning Goal</h3>
+    <input
+      id="goalInput"
+      type="text"
+      placeholder="e.g. Learn Go for backend jobs"
+      size="50"
+    />
+    <button id="generatePlanBtn">Generate Learning Plan</button>
 
-    <label for="eventStart">Start (local time):</label>
-    <input id="eventStart" type="datetime-local">
+    <h3>2. Learning Plan</h3>
+    <pre id="planOutput">No plan yet.</pre>
+    <button id="generateScheduleBtn" disabled>
+      Generate Schedule
+    </button>
 
-    <label for="eventEnd">End (local time):</label>
-    <input id="eventEnd" type="datetime-local">
+    <h3>3. Proposed Schedule</h3>
+    <pre id="scheduleOutput">No schedule yet.</pre>
+    <button id="approveBtn" disabled>
+      Approve & Add to Calendar
+    </button>
+  </section>
 
-    <button id="createEventBtn">Create Event</button>
-    <div id="createStatus" class="status"></div>
-  </div>
-
+  <!-- Scripts -->
   <script src="main.js"></script>
+  <script src="planner.js"></script>
 </body>
 </html>

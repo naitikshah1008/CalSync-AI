@@ -5,8 +5,17 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta
 from collections import defaultdict
 from copy import deepcopy
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # OK for local dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # -------------------------
 # CONFIG
@@ -47,6 +56,10 @@ class ScheduleRequest(BaseModel):
 
 class ApplyScheduleRequest(BaseModel):
     schedule: list
+
+class GenerateLearningPlanRequest(BaseModel):
+    goal: str
+    total_hours: int
 
 @app.post("/test-llm")
 def test_llm(req: LLMRequest):
@@ -262,6 +275,48 @@ Constraints:
         return {"error": "Failed to parse model JSON", "details": str(e)}
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/ai/generate-learning-plan")
+def generate_learning_plan(req: GenerateLearningPlanRequest):
+    """
+    Step 1: Use LLM to generate a structured learning plan.
+    """
+    prompt = f"""
+You are an expert technical learning planner.
+Create a learning plan for the following goal:
+Goal:
+{req.goal}
+Constraints:
+- Total estimated hours: {req.total_hours}
+- Output MUST be valid JSON
+- Do NOT include markdown
+- Do NOT include explanations
+Return JSON in this exact format:
+{{
+  "learning_plan": [
+    {{
+      "topic": "...",
+      "description": "...",
+      "subtopics": ["...", "..."],
+      "estimated_hours": number,
+      "difficulty_rating": "easy | medium | hard"
+    }}
+  ]
+}}
+"""
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": prompt
+    }
+    try:
+        r = requests.post(OLLAMA_URL, json=payload, timeout=60)
+        r.raise_for_status()
+        raw = r.text.strip()
+        last_line = raw.split("\n")[-1]
+        data = json.loads(last_line)
+        return data
+    except Exception as e:
+        return {"error": "Failed to generate learning plan", "details": str(e)}
 
 @app.post("/ai/generate-schedule")
 def generate_schedule(req: ScheduleRequest):
