@@ -17,26 +17,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# -------------------------
 # CONFIG
-# -------------------------
-
 OLLAMA_URL = "http://calsync-ollama:11434/api/generate"
 MCP_URL = "http://calsync-backend:8080/mcp"
 MODEL_NAME = "llama3.2:3b"
 
-# -------------------------
 # BASIC HEALTHCHECK
-# -------------------------
-
 @app.get("/health")
 def health():
     return {"status": "brain container running"}
 
-# -------------------------
 # BASIC LLM TEST ENDPOINT
-# -------------------------
-
 class LLMRequest(BaseModel):
     prompt: str
 
@@ -78,10 +69,7 @@ def test_llm(req: LLMRequest):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# ============================================================
-#                    MCP CLIENT FUNCTIONS
-# ============================================================
-
+# MCP CLIENT FUNCTIONS
 def mcp_call(tool: str, args: dict):
     """
     Minimal JSON-over-HTTP MCP client.
@@ -152,9 +140,10 @@ def postprocess_schedule(
     cleaned = []
     seen_subtopics = defaultdict(set)
     session_counters = defaultdict(int)
+    used_days = set() 
     for s in schedule:
         topic = s["topic"]
-        # ---- 1. Filter subtopics to correct topic ----
+        # 1. Filter subtopics to correct topic ----
         allowed = topic_subtopics.get(topic, set())
         filtered_subtopics = [
             st for st in s.get("subtopics", [])
@@ -163,10 +152,10 @@ def postprocess_schedule(
         if not filtered_subtopics:
             continue  # drop empty/invalid session
         seen_subtopics[topic].update(filtered_subtopics)
-        # ---- 2. Fix session numbering (per topic) ----
+        # 2. Fix session numbering (per topic) ----
         session_counters[topic] += 1
         session_number = session_counters[topic]
-        # ---- 3. Enforce time window + duration ----
+        # 3. Enforce time window + duration ----
         start_dt = datetime.fromisoformat(s["start"])
         max_end = start_dt.replace(
             hour=preferences.end_hour,
@@ -177,6 +166,12 @@ def postprocess_schedule(
             minutes=preferences.session_length_minutes
         )
         end_dt = min(desired_end, max_end)
+        if end_dt <= start_dt:
+            continue
+        day_key = start_dt.date().isoformat()
+        if day_key in used_days:
+            continue
+        used_days.add(day_key)
         cleaned.append({
             "topic": topic,
             "session_number": session_number,
@@ -186,10 +181,7 @@ def postprocess_schedule(
         })
     return cleaned
 
-# ============================================================
-#                    MCP TEST ENDPOINTS
-# ============================================================
-
+# MCP TEST ENDPOINTS
 @app.get("/mcp/test-list")
 def test_list():
     """Call list_calendar_events through MCP"""
@@ -200,11 +192,7 @@ def test_create(req: dict):
     """Call create_calendar_event through MCP"""
     return mcp_call("create_calendar_event", req)
 
-
-# ============================================================
-#                    AGENT TEST ENDPOINT
-# ============================================================
-
+# AGENT TEST ENDPOINT
 @app.post("/ai/test-agent")
 def test_agent(req: dict):
     """
