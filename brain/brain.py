@@ -47,6 +47,7 @@ class ScheduleRequest(BaseModel):
 
 class ApplyScheduleRequest(BaseModel):
     schedule: list
+    apply: bool = False
 
 class GenerateLearningPlanRequest(BaseModel):
     goal: str
@@ -143,7 +144,7 @@ def postprocess_schedule(
     used_days = set() 
     for s in schedule:
         topic = s["topic"]
-        # 1. Filter subtopics to correct topic ----
+        # 1. Filter subtopics to correct topic 
         allowed = topic_subtopics.get(topic, set())
         filtered_subtopics = [
             st for st in s.get("subtopics", [])
@@ -152,10 +153,10 @@ def postprocess_schedule(
         if not filtered_subtopics:
             continue  # drop empty/invalid session
         seen_subtopics[topic].update(filtered_subtopics)
-        # 2. Fix session numbering (per topic) ----
+        # 2. Fix session numbering (per topic)
         session_counters[topic] += 1
         session_number = session_counters[topic]
-        # 3. Enforce time window + duration ----
+        # 3. Enforce time window + duration
         start_dt = datetime.fromisoformat(s["start"])
         max_end = start_dt.replace(
             hour=preferences.end_hour,
@@ -371,7 +372,7 @@ OUTPUT SCHEMA:
 
 @app.post("/ai/apply-schedule")
 def apply_schedule(req: ApplyScheduleRequest):
-    created_events = []
+    preview_events = []
     for session in req.schedule:
         title = (
             f"{session['topic']} "
@@ -390,6 +391,14 @@ def apply_schedule(req: ApplyScheduleRequest):
             "start": session["start"],
             "end": session["end"]
         }
+        # Always collect preview info
+        preview_events.append({
+            "title": title,
+            "start": session["start"],
+            "end": session["end"]
+        })
+        if not req.apply:
+            continue
         result = mcp_call("create_calendar_event", event_payload)
         if "error" in result:
             return {
@@ -397,12 +406,12 @@ def apply_schedule(req: ApplyScheduleRequest):
                 "details": result["error"],
                 "failed_event": event_payload
             }
-        created_events.append({
-            "title": title,
-            "start": session["start"],
-            "end": session["end"]
-        })
+    if not req.apply:
+        return {
+            "mode": "dry-run",
+            "would_create": preview_events
+        }
     return {
-        "status": "success",
-        "events_created": created_events
+        "mode": "applied",
+        "events_created": preview_events
     }
