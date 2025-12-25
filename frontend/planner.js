@@ -94,9 +94,27 @@ generateScheduleBtn.addEventListener("click", async () => {
   }
 });
 
-// -----------------------------
-// STEP 3: Approve (apply later)
-// -----------------------------
-approveBtn.addEventListener("click", () => {
-  alert("Schedule approved. Next: apply to calendar.");
+approveBtn.addEventListener("click", async () => {
+  try {
+    const res = await fetch("http://localhost:5005/ai/apply-schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schedule: schedule,
+        apply: true
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert("Failed to add events: " + data.error);
+      return;
+    }
+    alert(`Created ${data.events_created?.length || 0} events`);
+    if (typeof loadEvents === "function") {
+      loadEvents();
+    }
+  } catch (err) {
+    alert("Network error while applying schedule");
+    console.error(err);
+  }
 });

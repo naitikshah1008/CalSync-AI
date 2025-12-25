@@ -10,8 +10,7 @@ import (
 	"google.golang.org/api/calendar/v3"
 )
 
-// ---------- MCP Request / Response Types ----------
-
+// MCP Request / Response Types
 type MCPRequest struct {
 	Tool string                 `json:"tool"`
 	Args map[string]interface{} `json:"args"`
@@ -22,8 +21,7 @@ type MCPResponse struct {
 	Error  string      `json:"error,omitempty"`
 }
 
-// ---------- MCP HTTP Handler ----------
-
+// MCP HTTP Handler
 func MCPHandler(w http.ResponseWriter, r *http.Request) {
 	// CORS headers (optional but useful)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -42,9 +40,7 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch req.Tool {
 
-	// ---------------------------------------------------------
 	// TOOL 1: list_calendar_events
-	// ---------------------------------------------------------
 	case "list_calendar_events":
 		events, err := MCPListCalendarEvents()
 		if err != nil {
@@ -54,9 +50,7 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(MCPResponse{Result: events})
 		return
 
-	// ---------------------------------------------------------
 	// TOOL 2: create_calendar_event
-	// ---------------------------------------------------------
 	case "create_calendar_event":
 		result, err := MCPCreateCalendarEvent(req.Args)
 		if err != nil {
@@ -74,14 +68,8 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-//
-// ────────────────────────────────────────────────────────────────
-//   TOOL IMPLEMENTATIONS
-// ────────────────────────────────────────────────────────────────
-//
-
-// ---------- TOOL: list_calendar_events ----------
-
+// TOOL IMPLEMENTATIONS
+// TOOL: list_calendar_events
 func MCPListCalendarEvents() ([]SimpleEvent, error) {
 	ctx := context.Background()
 	srv, err := getCalendarService(ctx)
@@ -138,8 +126,7 @@ func MCPListCalendarEvents() ([]SimpleEvent, error) {
 	return events, nil
 }
 
-// ---------- TOOL: create_calendar_event ----------
-
+// TOOL: create_calendar_event
 func MCPCreateCalendarEvent(args map[string]interface{}) (interface{}, error) {
 	summary, _ := args["summary"].(string)
 	description, _ := args["description"].(string)

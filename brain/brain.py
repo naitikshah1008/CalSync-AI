@@ -230,40 +230,6 @@ Explain the user's upcoming schedule clearly in one short paragraph.
         return {"error": "Failed to parse Ollama response","raw": raw}
     except Exception as e:
         return {"error": "LLM error: " + str(e)}
-    
-@app.post("/ai/generate-learning-plan")
-def generate_learning_plan(req: LearningPlanRequest):
-    if not req.goal.strip():
-        return {"error": "goal is required"}
-    prompt = f"""
-You are an expert learning coach.
-Return ONLY valid JSON. No markdown. No explanation text.
-Schema:
-{{
-  "learning_plan": [
-    {{
-      "topic": "string",
-      "description": "string",
-      "subtopics": ["string", "string"],
-      "estimated_hours": number,
-      "difficulty_rating": "easy" | "medium" | "hard"
-    }}
-  ],
-  "total_estimated_hours": number
-}}
-Constraints:
-- Goal: {req.goal}
-- Target total hours (approx): {req.total_hours}
-- Use 6 to 12 topics
-- difficulty_rating must be exactly: easy, medium, or hard
-"""
-    try:
-        plan = _ollama_generate_json(prompt)
-        return plan
-    except json.JSONDecodeError as e:
-        return {"error": "Failed to parse model JSON", "details": str(e)}
-    except Exception as e:
-        return {"error": str(e)}
 
 @app.post("/ai/generate-learning-plan")
 def generate_learning_plan(req: GenerateLearningPlanRequest):
