@@ -6,19 +6,12 @@
 </head>
 <body>
   <h1>Welcome</h1>
-
-  <button id="connectBtn" style="padding: 10px 20px; font-size: 16px;">
-    Connect to Google Calendar
-  </button>
-
+  <button id="connectBtn" style="padding: 10px 20px; font-size: 16px;"> Connect to Google Calendar </button>
   <p id="status"></p>
-
   <script>
     const statusEl = document.getElementById("status");
-
     document.getElementById("connectBtn").addEventListener("click", async () => {
       statusEl.textContent = "Checking Google Calendar status...";
-
       try {
         const res = await fetch("http://localhost:8080/api/v1/calendar/check-status");
         if (!res.ok) {
@@ -26,17 +19,14 @@
           window.location.href = "google-connect.html";
           return;
         }
-
         const data = await res.json();
         console.log("check-status:", data);
-
         // 1) Not configured → ask user to enter credentials
         if (!data.configured) {
           statusEl.textContent = "Google Calendar not configured. Redirecting to setup page...";
           window.location.href = "google-connect.html";
           return;
         }
-
         // 2) Configured but not authenticated → go to OAuth
         if (data.configured && !data.authenticated) {
           statusEl.textContent = "Credentials found. Redirecting to Google OAuth...";
@@ -57,14 +47,12 @@
           window.location.href = authData.auth_url;
           return;
         }
-
         // 3) Configured + authenticated → go straight to main page
         if (data.configured && data.authenticated) {
           statusEl.textContent = "Google Calendar connected. Redirecting to main page...";
           window.location.href = "main.html";
           return;
         }
-
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Network error. Redirecting to credential page...";

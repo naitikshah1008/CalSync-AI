@@ -207,13 +207,13 @@ def test_agent(req: dict):
         return {"error": "MCP error: " + events["error"]}
     # STEP 2: Build combined system prompt
     full_prompt = f"""
-You are a local AI agent with access to the user's calendar tools.
-User request:
-{user_prompt}
-Calendar events (raw JSON data):
-{events['result']}
-Explain the user's upcoming schedule clearly in one short paragraph.
-"""
+    You are a local AI agent with access to the user's calendar tools.
+    User request:
+    {user_prompt}
+    Calendar events (raw JSON data):
+    {events['result']}
+    Explain the user's upcoming schedule clearly in one short paragraph.
+    """
     llm_payload = {
         "model": MODEL_NAME,
         "prompt": full_prompt
@@ -283,46 +283,46 @@ def generate_schedule(req: ScheduleRequest):
     calendar_events = _normalize_events(events_resp.get("result", []))
     # STEP 2: Build scheduling prompt
     prompt = f"""
-You are an AI scheduling assistant.
-Your task is to create a realistic study schedule.
-Return ONLY valid JSON. No markdown. No explanation.
-INPUT DATA:
-Learning Plan:
-{req.learning_plan}
-Existing Calendar Events:
-{calendar_events}
-User Preferences:
-- Allowed days: weekdays AND weekends
-- Daily time window: {prefs.start_hour}:00 to {prefs.end_hour}:00
-- Session length: {prefs.session_length_minutes} minutes
-- Study days per week: {prefs.days_per_week}
-SESSION PLANNING RULES:
-- Group subtopics into study sessions in a logical learning order
-- A session may include multiple subtopics
-- Do NOT repeat subtopics across sessions for the same topic
-- Complete one topic fully before moving to the next
-- Restart session_number at 1 for each topic
-TIME PLACEMENT RULES:
-- Schedule at most one session per day
-- Respect the provided daily time window
-- Sessions must not overlap calendar events
-IMPORTANT:
-- Do NOT try to stretch or shrink sessions to match time exactly
-- Focus only on logical grouping and ordering
+    You are an AI scheduling assistant.
+    Your task is to create a realistic study schedule.
+    Return ONLY valid JSON. No markdown. No explanation.
+    INPUT DATA:
+    Learning Plan:
+    {req.learning_plan}
+    Existing Calendar Events:
+    {calendar_events}
+    User Preferences:
+    - Allowed days: weekdays AND weekends
+    - Daily time window: {prefs.start_hour}:00 to {prefs.end_hour}:00
+    - Session length: {prefs.session_length_minutes} minutes
+    - Study days per week: {prefs.days_per_week}
+    SESSION PLANNING RULES:
+    - Group subtopics into study sessions in a logical learning order
+    - A session may include multiple subtopics
+    - Do NOT repeat subtopics across sessions for the same topic
+    - Complete one topic fully before moving to the next
+    - Restart session_number at 1 for each topic
+    TIME PLACEMENT RULES:
+    - Schedule at most one session per day
+    - Respect the provided daily time window
+    - Sessions must not overlap calendar events
+    IMPORTANT:
+    - Do NOT try to stretch or shrink sessions to match time exactly
+    - Focus only on logical grouping and ordering
 
-OUTPUT SCHEMA:
-{{
-  "schedule": [
+    OUTPUT SCHEMA:
     {{
-      "topic": "string",
-      "session_number": number,
-      "subtopics": ["string", "string"],
-      "start": "YYYY-MM-DDTHH:MM:SS±HH:MM",
-      "end": "YYYY-MM-DDTHH:MM:SS±HH:MM"
+    "schedule": [
+        {{
+        "topic": "string",
+        "session_number": number,
+        "subtopics": ["string", "string"],
+        "start": "YYYY-MM-DDTHH:MM:SS±HH:MM",
+        "end": "YYYY-MM-DDTHH:MM:SS±HH:MM"
+        }}
+    ]
     }}
-  ]
-}}
-"""
+    """
     try:
         raw_schedule = _ollama_generate_json(prompt)
         validated = postprocess_schedule(
@@ -336,6 +336,7 @@ OUTPUT SCHEMA:
     except Exception as e:
         return {"error": "Unexpected error", "details": str(e)}
 
+print("APPLYING SCHEDULE:", json.dumps(req.schedule, indent=2))
 @app.post("/ai/apply-schedule")
 def apply_schedule(req: ApplyScheduleRequest):
     preview_events = []

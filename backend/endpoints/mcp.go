@@ -26,20 +26,16 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 	// CORS headers (optional but useful)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
-
 	if r.Method != http.MethodPost {
 		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	var req MCPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		json.NewEncoder(w).Encode(MCPResponse{Error: "Invalid JSON"})
 		return
 	}
-
 	switch req.Tool {
-
 	// TOOL 1: list_calendar_events
 	case "list_calendar_events":
 		events, err := MCPListCalendarEvents()
@@ -49,7 +45,6 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(MCPResponse{Result: events})
 		return
-
 	// TOOL 2: create_calendar_event
 	case "create_calendar_event":
 		result, err := MCPCreateCalendarEvent(req.Args)
@@ -59,7 +54,6 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		json.NewEncoder(w).Encode(MCPResponse{Result: result})
 		return
-
 	default:
 		json.NewEncoder(w).Encode(MCPResponse{
 			Error: "Unknown tool: " + req.Tool,
@@ -76,11 +70,9 @@ func MCPListCalendarEvents() ([]SimpleEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init calendar service: %w", err)
 	}
-
 	now := time.Now()
 	timeMin := now.Format(time.RFC3339)
 	timeMax := now.Add(7 * 24 * time.Hour).Format(time.RFC3339)
-
 	call := srv.Events.List("primary").
 		ShowDeleted(false).
 		SingleEvents(true).
@@ -88,18 +80,14 @@ func MCPListCalendarEvents() ([]SimpleEvent, error) {
 		TimeMin(timeMin).
 		TimeMax(timeMax).
 		MaxResults(20)
-
 	resp, err := call.Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch events: %w", err)
 	}
-
 	events := []SimpleEvent{}
-
 	for _, e := range resp.Items {
 		start := ""
 		end := ""
-
 		if e.Start != nil {
 			if e.Start.DateTime != "" {
 				start = e.Start.DateTime
@@ -114,7 +102,6 @@ func MCPListCalendarEvents() ([]SimpleEvent, error) {
 				end = e.End.Date
 			}
 		}
-
 		events = append(events, SimpleEvent{
 			ID:      e.Id,
 			Summary: e.Summary,
@@ -122,7 +109,6 @@ func MCPListCalendarEvents() ([]SimpleEvent, error) {
 			End:     end,
 		})
 	}
-
 	return events, nil
 }
 
@@ -132,17 +118,14 @@ func MCPCreateCalendarEvent(args map[string]interface{}) (interface{}, error) {
 	description, _ := args["description"].(string)
 	start, _ := args["start"].(string)
 	end, _ := args["end"].(string)
-
 	if summary == "" || start == "" || end == "" {
 		return nil, fmt.Errorf("missing required fields: summary, start, end")
 	}
-
 	ctx := context.Background()
 	srv, err := getCalendarService(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init calendar service: %w", err)
 	}
-
 	event := &calendar.Event{
 		Summary:     summary,
 		Description: description,
@@ -160,7 +143,6 @@ func MCPCreateCalendarEvent(args map[string]interface{}) (interface{}, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event: %w", err)
 	}
-
 	return map[string]string{
 		"event_id": created.Id,
 		"htmlLink": created.HtmlLink,
