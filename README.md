@@ -55,18 +55,45 @@ Google Calendar API
 
 ```
 CalSync-AI/
-├── backend/
-│   ├── cmd/api/
-│   ├── endpoints/
-│   ├── data/               # credentials.json, token.json
-│   └── Dockerfile
-├── brain/
+├── backend
+│   ├── bin
+│   │   └── api
+│   ├── cmd
+│   │   └── api
+│   │       └── main.go
+│   ├── data
+│   │   ├── credentials.json
+│   │   └── token.json
+│   ├── Dockerfile
+│   ├── endpoints
+│   │   ├── calendar_create_event.go
+│   │   ├── calendar_events.go
+│   │   ├── calender.go
+│   │   ├── google_oauth.go
+│   │   └── mcp.go
+│   ├── go.mod
+│   ├── go.sum
+│   ├── internal
+│   │   └── logging.go
+│   ├── logs
+│   │   └── requests_log.csv
+│   └── README.md
+├── brain
 │   ├── brain.py
-│   └── Dockerfile
-├── frontend/
-│   ├── planner.js
-│   └── index.html
+│   ├── Dockerfile
+│   ├── README.md
+│   └── requirements.txt
 ├── docker-compose.yml
+├── frontend
+│   ├── app.js
+│   ├── Dockerfile
+│   ├── google-connect.html
+│   ├── index.html
+│   ├── main.html
+│   ├── main.js
+│   ├── planner.js
+│   └── README.md
+├── logs
 └── README.md
 ```
 
