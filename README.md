@@ -1,55 +1,59 @@
-CalSync-AI 🗓️🤖
+# CalSync-AI 🗓️🤖
 
-AI-Powered Learning Planner with Google Calendar Integration
+**AI-Powered Learning Planner with Google Calendar Integration**
 
-CalSync-AI is a local, AI-driven learning planner that generates structured learning plans, converts them into realistic study schedules, and automatically syncs them to Google Calendar — all running locally using Docker.
+CalSync-AI is a local, AI-driven learning planner that generates structured learning plans, converts them into realistic study schedules, and automatically syncs them to **Google Calendar** — all running locally using Docker.
 
-✨ Features
+---
 
-🧠 LLM-Generated Learning Plans
+## ✨ Features
 
-📅 Automatic Schedule Generation
+* 🧠 **LLM-Generated Learning Plans**
+* 📅 **Automatic Schedule Generation**
+* 🔗 **Google Calendar Sync (OAuth2)**
+* 🛠 **MCP (Model Context Protocol) Tooling**
+* 🐳 **Fully Dockerized Stack**
+* 🔒 **Local-only Execution (No Cloud LLMs)**
 
-🔗 Google Calendar Sync (OAuth2)
+---
 
-🛠 Modular MCP (Model Context Protocol) Tooling
+## 🏗️ Architecture Overview
 
-🐳 Fully Dockerized (Frontend, Backend, Brain, Ollama)
-
-🔒 Local-only execution (no cloud dependencies)
-
-🏗️ Architecture Overview
-Frontend (JS/HTML)
+```
+Frontend (HTML + JS)
    ↓
-Brain Service (FastAPI + LLM orchestration)
-   ↓
-MCP Calls
-   ↓
-Backend (Go)
+Brain Service (FastAPI + LLM Orchestration)
+   ↓  MCP Calls
+Backend (Go API)
    ↓
 Google Calendar API
+```
 
-Services
-Service	Purpose
-frontend	User UI (learning goal → schedule → approve)
-brain	AI logic, prompt orchestration, schedule validation
-backend	OAuth, calendar read/write, MCP host
-ollama	Local LLM inference engine
-🚀 Tech Stack
+### Services
 
-Frontend: Vanilla JS + HTML
+| Service  | Purpose                                |
+| -------- | -------------------------------------- |
+| frontend | User interface for planning & approval |
+| brain    | AI logic, scheduling, validation       |
+| backend  | OAuth, calendar read/write, MCP host   |
+| ollama   | Local LLM inference engine             |
 
-Backend: Go (Google Calendar API)
+---
 
-Brain: FastAPI (Python)
+## 🚀 Tech Stack
 
-LLM: Ollama (llama3.2:3b)
+* **Frontend**: HTML + Vanilla JavaScript
+* **Backend**: Go (Google Calendar API)
+* **Brain**: FastAPI (Python)
+* **LLM**: Ollama (`llama3.2:3b`)
+* **Auth**: Google OAuth2
+* **Infra**: Docker + Docker Compose
 
-Auth: Google OAuth2
+---
 
-Infra: Docker + Docker Compose
+## 📂 Repository Structure
 
-📂 Repository Structure
+```
 CalSync-AI/
 ├── backend/
 │   ├── cmd/api/
@@ -64,150 +68,174 @@ CalSync-AI/
 │   └── index.html
 ├── docker-compose.yml
 └── README.md
+```
 
-🔐 Google Calendar Setup
-1️⃣ Create Google OAuth Credentials
+---
 
-Go to Google Cloud Console
+## 🔐 Google Calendar Setup
 
-Create a project
+### 1️⃣ Create OAuth Credentials
 
-Enable Google Calendar API
+1. Go to **Google Cloud Console**
+2. Create a new project
+3. Enable **Google Calendar API**
+4. Create **OAuth Client ID**
 
-Create OAuth Client ID
+   * Application type: Web
+   * Redirect URI:
 
-Application type: Web
+     ```
+     http://localhost:8080/api/v1/calendar/callback
+     ```
 
-Redirect URI:
+---
 
-http://localhost:8080/api/v1/calendar/callback
+### 2️⃣ Configure Credentials
 
-2️⃣ Configure Credentials in App
+From the frontend UI, submit:
 
-From the frontend UI:
+* Client ID
+* Client Secret
+* Redirect URI
 
-Enter:
+Saved automatically to:
 
-Client ID
-
-Client Secret
-
-Redirect URI
-
-Credentials are saved to:
-
+```
 backend/data/credentials.json
+```
 
-3️⃣ Authenticate
+---
 
-Click Connect Google Calendar
+### 3️⃣ Authenticate
 
-Complete OAuth flow
+* Click **Connect Google Calendar**
+* Complete OAuth flow
+* Token saved to:
 
-Token saved at:
-
+```
 backend/data/token.json
+```
 
-🧠 AI Flow (How It Works)
-Step 1 — Generate Learning Plan
+---
+
+## 🧠 AI Workflow
+
+### Step 1 — Generate Learning Plan
+
+```
 POST /ai/generate-learning-plan
+```
 
+Produces structured JSON learning plan.
 
-Output:
+---
 
-{
-  "learning_plan": [
-    {
-      "topic": "Go Fundamentals",
-      "subtopics": ["Variables", "Control Flow"],
-      "estimated_hours": 2
-    }
-  ]
-}
+### Step 2 — Generate Schedule
 
-Step 2 — Generate Schedule
+```
 POST /ai/generate-schedule
+```
 
+Constraints enforced:
 
-Rules enforced:
+* No past dates
+* One session per day
+* No calendar overlaps
+* User-defined time window
 
-No past dates
+---
 
-One session per day
+### Step 3 — Apply Schedule
 
-No calendar conflicts
-
-User-defined time window
-
-Step 3 — Apply Schedule
+```
 POST /ai/apply-schedule
+```
 
+Creates Google Calendar events using MCP tooling.
 
-Creates Google Calendar events
+---
 
-Uses MCP tool create_calendar_event
+## 🔧 Running the Project
 
-🔧 Running the Project
-Prerequisites
+### Prerequisites
 
-Docker
+* Docker
+* Docker Compose
+* Google account
 
-Docker Compose
+---
 
-Google account
+### Start Services
 
-Start Everything
+```bash
 docker compose up --build
+```
 
+---
 
-Services will be available at:
+### Service URLs
 
-Service	URL
-Frontend	http://localhost:8000
+| Service  | URL                                              |
+| -------- | ------------------------------------------------ |
+| Frontend | [http://localhost:8000](http://localhost:8000)   |
+| Backend  | [http://localhost:8080](http://localhost:8080)   |
+| Brain    | [http://localhost:5005](http://localhost:5005)   |
+| Ollama   | [http://localhost:11434](http://localhost:11434) |
 
-Backend	http://localhost:8080
+---
 
-Brain	http://localhost:5005
+## 🧪 Debugging
 
-Ollama	http://localhost:11434
-🧪 Debugging Tips
-Check Brain Logs
+### Brain Logs
+
+```bash
 docker logs -f calsync-brain
+```
 
-Check Backend Logs
+### Backend Logs
+
+```bash
 docker logs -f calsync-backend
+```
 
-Test Calendar Access
+### Test Calendar API
+
+```bash
 curl http://localhost:8080/api/v1/calendar/events
+```
 
-⚠️ Common Pitfalls
-Issue	Fix
-LLM JSON parse errors	Use r.json() from Ollama
-Events not appearing	Verify token.json exists
-Past dates generated	Enforced in generate_schedule
-Nothing happens on approve	Ensure apply: true
-🛣️ Roadmap
+---
 
- Multi-week schedules
+## ⚠️ Common Issues
 
- User timezone detection
+| Issue                 | Solution                      |
+| --------------------- | ----------------------------- |
+| LLM JSON parse errors | Use strict JSON extraction    |
+| Events not appearing  | Verify token.json exists      |
+| Past dates scheduled  | Enforced in generate_schedule |
+| Approve does nothing  | Ensure `apply: true`          |
 
- UI calendar preview
+---
 
- Retry-safe LLM parsing
+## 🛣️ Roadmap
 
- Task rescheduling
+* [ ] Multi-week scheduling
+* [ ] Timezone auto-detection
+* [ ] Calendar preview UI
+* [ ] Retry-safe LLM parsing
+* [ ] Rescheduling support
 
-📜 License
+---
 
-MIT License — use freely, modify responsibly.
+## 📜 License
 
-🙌 Acknowledgements
+MIT License
 
-Ollama
+---
 
-Google Calendar API
+## 🙌 Acknowledgements
 
-FastAPI
-
-Docker
+* Ollama
+* Google Calendar API
+* FastAPI
+* Docker
