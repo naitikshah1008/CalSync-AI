@@ -92,9 +92,6 @@ def mcp_call(tool: str, args: dict):
         return {"error": str(e)}
     
 def _ollama_generate_json(prompt: str) -> dict:
-    """
-    Call Ollama and return the final JSON object from its response.
-    """
     payload = {
         "model": MODEL_NAME,
         "prompt": prompt,
@@ -102,11 +99,18 @@ def _ollama_generate_json(prompt: str) -> dict:
     }
     r = requests.post(OLLAMA_URL, json=payload, timeout=120)
     r.raise_for_status()
-    raw = r.text.strip()
-    last_line = raw.split("\n")[-1]
-    data = json.loads(last_line)
-    text = data.get("response", "").strip()
-    return json.loads(text)
+    data = r.json()
+    response_text = data.get("response", "").strip()
+    start = response_text.find("{")
+    end = response_text.rfind("}")
+    if start == -1 or end == -1 or end <= start:
+        raise json.JSONDecodeError(
+            "No JSON object found in model response",
+            response_text,
+            0
+        )
+    json_text = response_text[start:end + 1]
+    return json.loads(json_text)
 
 def _normalize_events(events: list) -> list:
     """

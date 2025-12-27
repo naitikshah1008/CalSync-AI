@@ -55,7 +55,7 @@ async function loadEvents() {
   }
 }
 
-// -------- Create event (POST /api/v1/calendar/events/create) --------
+// Create event (POST /api/v1/calendar/events/create)
 async function createEvent() {
   const summaryEl = document.getElementById("eventSummary");
   const descEl = document.getElementById("eventDescription");
