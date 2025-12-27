@@ -277,42 +277,34 @@ def generate_schedule(req: ScheduleRequest):
     if "error" in events_resp:
         return {"error": "Failed to fetch calendar events", "details": events_resp["error"]}
     calendar_events = _normalize_events(events_resp.get("result", []))
-    # STEP 2: Build scheduling prompt
+    today = datetime.now().date().isoformat()
+
     prompt = f"""
     You are an AI scheduling assistant.
-    Your task is to create a realistic study schedule.
+    CRITICAL RULES (MUST FOLLOW):
+    - ALL scheduled sessions MUST start on or AFTER this date: {today}
+    - DO NOT schedule anything in the past
     Return ONLY valid JSON. No markdown. No explanation.
-    INPUT DATA:
     Learning Plan:
     {req.learning_plan}
     Existing Calendar Events:
     {calendar_events}
     User Preferences:
-    - Allowed days: weekdays AND weekends
     - Daily time window: {prefs.start_hour}:00 to {prefs.end_hour}:00
     - Session length: {prefs.session_length_minutes} minutes
     - Study days per week: {prefs.days_per_week}
-    SESSION PLANNING RULES:
-    - Group subtopics into study sessions in a logical learning order
-    - A session may include multiple subtopics
-    - Do NOT repeat subtopics across sessions for the same topic
-    - Complete one topic fully before moving to the next
-    - Restart session_number at 1 for each topic
-    TIME PLACEMENT RULES:
-    - Schedule at most one session per day
-    - Respect the provided daily time window
-    - Sessions must not overlap calendar events
-    IMPORTANT:
-    - Do NOT try to stretch or shrink sessions to match time exactly
-    - Focus only on logical grouping and ordering
-
+    Rules:
+    - One session per day
+    - Do not overlap calendar events
+    - Complete one topic before moving to the next
+    - Restart session_number per topic
     OUTPUT SCHEMA:
     {{
     "schedule": [
         {{
         "topic": "string",
         "session_number": number,
-        "subtopics": ["string", "string"],
+        "subtopics": ["string"],
         "start": "YYYY-MM-DDTHH:MM:SS±HH:MM",
         "end": "YYYY-MM-DDTHH:MM:SS±HH:MM"
         }}
