@@ -2,7 +2,7 @@
 
 **AI-Powered Learning Planner with Google Calendar Integration**
 
-CalSync-AI is a local, AI-driven learning planner that generates structured learning plans, converts them into realistic study schedules, and automatically syncs them to **Google Calendar** — all running locally using Docker.
+CalSync-AI is a local, AI-driven learning planner that generates structured learning plans, converts them into realistic study schedules, and automatically syncs them to **Google Calendar**, all running locally using Docker.
 
 ---
 
