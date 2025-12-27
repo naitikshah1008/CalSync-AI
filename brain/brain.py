@@ -4,7 +4,6 @@ import json
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from collections import defaultdict
-from copy import deepcopy
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
