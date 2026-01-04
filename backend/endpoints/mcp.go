@@ -138,7 +138,6 @@ func MCPCreateCalendarEvent(args map[string]interface{}) (interface{}, error) {
 			TimeZone: "America/Los_Angeles",
 		},
 	}
-
 	created, err := srv.Events.Insert("primary", event).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event: %w", err)
