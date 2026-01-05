@@ -277,7 +277,6 @@ def generate_schedule(req: ScheduleRequest):
         return {"error": "Failed to fetch calendar events", "details": events_resp["error"]}
     calendar_events = _normalize_events(events_resp.get("result", []))
     today = datetime.now().date().isoformat()
-
     prompt = f"""
     You are an AI scheduling assistant.
     CRITICAL RULES (MUST FOLLOW):
