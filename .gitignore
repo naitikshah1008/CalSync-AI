@@ -1,3 +1,2 @@
 backend/logs/requests_log.csv
-backend/data/token.json
-backend/data/credentials.json
+backend/.env
