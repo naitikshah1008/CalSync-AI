@@ -123,7 +123,31 @@ approveBtn.addEventListener("click", async () => {
       })
     });
 
-    const data = await res.json();
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    } else {
+      alert(`Failed to add events. Server returned ${res.status}.`);
+      console.error("Non-JSON response:", rawText);
+      return;
+    }
+
+    if (res.status === 409) {
+      alert(data.error || "This schedule has already been applied.");
+      approveBtn.disabled = true;
+      if (typeof loadHistory === "function") {
+        loadHistory();
+      }
+      return;
+    }
+
+    if (!res.ok) {
+      alert("Failed to add events: " + (data.error || `Server returned ${res.status}`));
+      return;
+    }
 
     if (data.error) {
       alert("Failed to add events: " + data.error);
@@ -131,9 +155,14 @@ approveBtn.addEventListener("click", async () => {
     }
 
     alert(`Created ${data.events_created?.length || 0} events`);
+    approveBtn.disabled = true;
 
     if (typeof loadEvents === "function") {
       loadEvents();
+    }
+
+    if (typeof loadHistory === "function") {
+      loadHistory();
     }
   } catch (err) {
     alert("Network error while applying schedule");
@@ -242,7 +271,7 @@ function renderSchedules(schedules) {
         <div class="meta">
           <span class="chip ${statusClass}">${scheduleItem.status || "unknown"}</span>
           Created: ${formatDateTime(scheduleItem.created_at)}<br>
-          ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : ""}
+          ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : "Not applied yet<br>"}
           Sessions: ${sessions.length}
         </div>
         <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Sessions</button>

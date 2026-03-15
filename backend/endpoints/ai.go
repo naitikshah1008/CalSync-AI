@@ -232,6 +232,23 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if req.SavedScheduleID != nil {
+		rec, err := getScheduleStatus(r.Context(), *req.SavedScheduleID, user.ID)
+		if err != nil {
+			http.Error(w, "failed to load saved schedule", http.StatusNotFound)
+			return
+		}
+
+		if req.Apply && rec.Status == "applied" {
+			writeJSON(w, http.StatusConflict, map[string]any{
+				"error":             "This schedule has already been applied.",
+				"saved_schedule_id": rec.ID,
+				"status":            rec.Status,
+			})
+			return
+		}
+	}
+
 	srv, err := getCalendarServiceForUser(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "failed to init calendar service: "+err.Error(), http.StatusInternalServerError)

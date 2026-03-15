@@ -99,6 +99,10 @@ func runMigrations(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 		`,
+		`
+		CREATE UNIQUE INDEX IF NOT EXISTS schedule_events_google_event_id_idx
+		ON schedule_events (google_event_id);
+		`,
 	}
 
 	for _, q := range queries {
