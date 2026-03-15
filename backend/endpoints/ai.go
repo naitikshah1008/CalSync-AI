@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -395,5 +396,133 @@ func ListScheduleEventsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"schedule_events": items,
+	})
+}
+
+func DeleteLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	res, err := DB.ExecContext(r.Context(), `
+		DELETE FROM learning_plans
+		WHERE id = $1 AND user_id = $2
+	`, id, user.ID)
+	if err != nil {
+		http.Error(w, "failed to delete learning plan", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "learning plan not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "deleted",
+		"id":     id,
+	})
+}
+
+func DeleteScheduleHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		http.Error(w, "missing id", http.StatusBadRequest)
+		return
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	var status string
+	err = DB.QueryRowContext(r.Context(), `
+		SELECT status
+		FROM schedules
+		WHERE id = $1 AND user_id = $2
+	`, id, user.ID).Scan(&status)
+	if err != nil {
+		http.Error(w, "schedule not found", http.StatusNotFound)
+		return
+	}
+	srv, err := getCalendarServiceForUser(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "failed to init calendar service: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	linkedEvents, err := getScheduleEventsByScheduleID(r.Context(), id, user.ID)
+	if err != nil {
+		http.Error(w, "failed to load linked schedule events", http.StatusInternalServerError)
+		return
+	}
+	deletedGoogleEvents := 0
+	for _, ev := range linkedEvents {
+		err := srv.Events.Delete("primary", ev.GoogleEventID).Do()
+		if err == nil {
+			deletedGoogleEvents++
+			continue
+		}
+		// If the event is already gone from Google Calendar,
+		// we still allow cleanup of our local records.
+	}
+	_, err = DB.ExecContext(r.Context(), `
+		DELETE FROM schedule_events
+		WHERE schedule_id = $1 AND user_id = $2
+	`, id, user.ID)
+	if err != nil {
+		http.Error(w, "failed to delete schedule event metadata", http.StatusInternalServerError)
+		return
+	}
+	res, err := DB.ExecContext(r.Context(), `
+		DELETE FROM schedules
+		WHERE id = $1 AND user_id = $2
+	`, id, user.ID)
+	if err != nil {
+		http.Error(w, "failed to delete schedule", http.StatusInternalServerError)
+		return
+	}
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "schedule not found", http.StatusNotFound)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":                "deleted",
+		"id":                    id,
+		"previous_status":       status,
+		"deleted_google_events": deletedGoogleEvents,
 	})
 }

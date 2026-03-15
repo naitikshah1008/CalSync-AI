@@ -184,6 +184,64 @@ if (loadHistoryBtn) {
   loadHistoryBtn.addEventListener("click", loadHistory);
 }
 
+async function deleteLearningPlan(id) {
+  const confirmed = window.confirm("Delete this saved learning plan?");
+  if (!confirmed) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/learning-plans/delete?id=${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    }
+    if (!res.ok) {
+      alert(data.error || `Failed to delete learning plan (${res.status})`);
+      return;
+    }
+    loadHistory();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete learning plan.");
+  }
+}
+
+async function deleteSchedule(id) {
+  const confirmed = window.confirm(
+    "Delete this saved schedule? If it was applied, its linked Google Calendar events will also be removed."
+  );
+  if (!confirmed) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/schedules/delete?id=${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    }
+    if (!res.ok) {
+      alert(data.error || `Failed to delete schedule (${res.status})`);
+      return;
+    }
+    alert(
+      `Deleted schedule successfully.${typeof data.deleted_google_events === "number" ? ` Removed ${data.deleted_google_events} Google Calendar event(s).` : ""}`
+    );
+    if (typeof loadEvents === "function") {
+      loadEvents();
+    }
+    loadHistory();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to delete schedule.");
+  }
+}
+
 const historyPlansList = document.getElementById("historyPlansList");
 const historySchedulesList = document.getElementById("historySchedulesList");
 const historyScheduleEventsList = document.getElementById("historyScheduleEventsList");
@@ -216,7 +274,10 @@ function renderLearningPlans(plans) {
           Total Hours: ${plan.total_hours ?? "—"}<br>
           Topics: ${topics.length}
         </div>
-        <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Details</button>
+        <div class="action-row">
+          <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Details</button>
+          <button class="small-btn delete-btn" onclick="deleteLearningPlan(${plan.id})">Delete</button>
+        </div>
         <div class="details" id="${detailsId}">
           ${topics.map(topic => `
             • ${topic.topic} (${topic.difficulty_rating || "unknown"}, ${topic.estimated_hours || 0}h)
@@ -246,7 +307,10 @@ function renderSchedules(schedules) {
           ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : "Not applied yet<br>"}
           Sessions: ${sessions.length}
         </div>
-        <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Sessions</button>
+        <div class="action-row">
+          <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Sessions</button>
+          <button class="small-btn delete-btn" onclick="deleteSchedule(${scheduleItem.id})">Delete</button>
+        </div>
         <div class="details" id="${detailsId}">
           ${sessions.map(session => `
             • ${session.topic} — Session ${session.session_number}
@@ -281,3 +345,5 @@ function renderScheduleEvents(events) {
 }
 
 window.toggleDetails = toggleDetails;
+window.deleteLearningPlan = deleteLearningPlan;
+window.deleteSchedule = deleteSchedule;
