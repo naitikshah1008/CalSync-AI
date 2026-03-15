@@ -148,7 +148,7 @@ const historyScheduleEventsOutput = document.getElementById("historyScheduleEven
 
 async function loadHistory() {
   try {
-      const [plansRes, schedulesRes, scheduleEventsRes] = await Promise.all([
+    const [plansRes, schedulesRes, scheduleEventsRes] = await Promise.all([
       fetch(`${API_BASE}/api/v1/ai/learning-plans`, {
         credentials: "include",
       }),
@@ -164,17 +164,120 @@ async function loadHistory() {
     const schedulesData = await schedulesRes.json();
     const scheduleEventsData = await scheduleEventsRes.json();
 
-    historyPlansOutput.textContent = JSON.stringify(plansData.learning_plans || [], null, 2);
-    historySchedulesOutput.textContent = JSON.stringify(schedulesData.schedules || [], null, 2);
-    historyScheduleEventsOutput.textContent = JSON.stringify(scheduleEventsData.schedule_events || [], null, 2);
+    renderLearningPlans(plansData.learning_plans || []);
+    renderSchedules(schedulesData.schedules || []);
+    renderScheduleEvents(scheduleEventsData.schedule_events || []);
   } catch (err) {
     console.error(err);
-    historyPlansOutput.textContent = "Failed to load saved plans.";
-    historySchedulesOutput.textContent = "Failed to load saved schedules.";
-    historyScheduleEventsOutput.textContent = "Failed to load applied schedule events.";
+    historyPlansList.textContent = "Failed to load saved plans.";
+    historySchedulesList.textContent = "Failed to load saved schedules.";
+    historyScheduleEventsList.textContent = "Failed to load applied schedule events.";
   }
 }
 
 if (loadHistoryBtn) {
   loadHistoryBtn.addEventListener("click", loadHistory);
 }
+
+const historyPlansList = document.getElementById("historyPlansList");
+const historySchedulesList = document.getElementById("historySchedulesList");
+const historyScheduleEventsList = document.getElementById("historyScheduleEventsList");
+
+function formatDateTime(value) {
+  if (!value) return "";
+  return new Date(value).toLocaleString();
+}
+
+function toggleDetails(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.toggle("open");
+  }
+}
+
+function renderLearningPlans(plans) {
+  if (!plans || plans.length === 0) {
+    historyPlansList.textContent = "No saved learning plans.";
+    return;
+  }
+
+  historyPlansList.innerHTML = plans.slice(0, 5).map((plan, index) => {
+    const topics = plan.plan?.learning_plan || [];
+    const detailsId = `plan-details-${index}`;
+
+    return `
+      <div class="card">
+        <h4>${plan.goal || "Untitled Goal"}</h4>
+        <div class="meta">
+          Created: ${formatDateTime(plan.created_at)}<br>
+          Total Hours: ${plan.total_hours ?? "—"}<br>
+          Topics: ${topics.length}
+        </div>
+        <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Details</button>
+        <div class="details" id="${detailsId}">
+          ${topics.map(topic => `
+            • ${topic.topic} (${topic.difficulty_rating || "unknown"}, ${topic.estimated_hours || 0}h)
+              - ${topic.subtopics?.join(", ") || ""}
+          `).join("\n")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderSchedules(schedules) {
+  if (!schedules || schedules.length === 0) {
+    historySchedulesList.textContent = "No saved schedules.";
+    return;
+  }
+
+  historySchedulesList.innerHTML = schedules.slice(0, 5).map((scheduleItem, index) => {
+    const sessions = scheduleItem.schedule?.schedule || [];
+    const detailsId = `schedule-details-${index}`;
+    const statusClass = scheduleItem.status === "applied" ? "applied" : "draft";
+
+    return `
+      <div class="card">
+        <h4>Schedule #${scheduleItem.id}</h4>
+        <div class="meta">
+          <span class="chip ${statusClass}">${scheduleItem.status || "unknown"}</span>
+          Created: ${formatDateTime(scheduleItem.created_at)}<br>
+          ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : ""}
+          Sessions: ${sessions.length}
+        </div>
+        <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Sessions</button>
+        <div class="details" id="${detailsId}">
+          ${sessions.map(session => `
+            • ${session.topic} — Session ${session.session_number}
+              ${formatDateTime(session.start)} → ${formatDateTime(session.end)}
+              Subtopics: ${session.subtopics?.join(", ") || ""}
+          `).join("\n\n")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderScheduleEvents(events) {
+  if (!events || events.length === 0) {
+    historyScheduleEventsList.textContent = "No applied calendar events.";
+    return;
+  }
+
+  historyScheduleEventsList.innerHTML = `
+    <div class="card">
+      ${events.slice(0, 10).map(event => `
+        <div class="event-row">
+          <strong>${event.title}</strong><br>
+          <span class="meta">
+            ${formatDateTime(event.start_time)} → ${formatDateTime(event.end_time)}<br>
+            Schedule ID: ${event.schedule_id}
+          </span>
+          ${event.html_link ? `<br><a class="event-link" href="${event.html_link}" target="_blank">Open in Google Calendar</a>` : ""}
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+window.toggleDetails = toggleDetails;

@@ -3,6 +3,88 @@
 <head>
   <meta charset="UTF-8" />
   <title>CalSync AI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 24px;
+      line-height: 1.4;
+    }
+
+    section {
+      margin-bottom: 32px;
+    }
+
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+
+    .card h4 {
+      margin: 0 0 8px 0;
+    }
+
+    .meta {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 8px;
+    }
+
+    .chip {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #eee;
+      font-size: 12px;
+      margin-right: 6px;
+    }
+
+    .chip.applied {
+      background: #d9f2d9;
+    }
+
+    .chip.draft {
+      background: #fff1cc;
+    }
+
+    .details {
+      margin-top: 10px;
+      padding: 10px;
+      background: white;
+      border: 1px solid #eee;
+      border-radius: 8px;
+      display: none;
+      white-space: pre-wrap;
+    }
+
+    .details.open {
+      display: block;
+    }
+
+    .small-btn {
+      padding: 6px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .event-row {
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+    }
+
+    .event-row:last-child {
+      border-bottom: none;
+    }
+
+    a.event-link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 13px;
+    }
+  </style>
 </head>
 <body>
   <h1>CalSync AI</h1>
@@ -33,20 +115,20 @@
     <button id="approveBtn" disabled>Approve & Add to Calendar</button>
   </section>
 
-    <hr />
-    
+  <hr />
+
   <section>
     <h2>Saved History</h2>
     <button id="loadHistoryBtn">Load Saved Plans & Schedules</button>
 
     <h3>Saved Learning Plans</h3>
-    <pre id="historyPlansOutput">No saved plans loaded yet.</pre>
+    <div id="historyPlansList">No saved plans loaded yet.</div>
 
     <h3>Saved Schedules</h3>
-    <pre id="historySchedulesOutput">No saved schedules loaded yet.</pre>
+    <div id="historySchedulesList">No saved schedules loaded yet.</div>
 
     <h3>Applied Calendar Events</h3>
-    <pre id="historyScheduleEventsOutput">No applied schedule events loaded yet.</pre>
+    <div id="historyScheduleEventsList">No applied schedule events loaded yet.</div>
   </section>
 
   <script src="main.js"></script>
