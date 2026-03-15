@@ -17,11 +17,9 @@ generatePlanBtn.addEventListener("click", async () => {
     alert("Please enter a learning goal");
     return;
   }
-
   planOutput.textContent = "Generating learning plan...";
   generateScheduleBtn.disabled = true;
   approveBtn.disabled = true;
-
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-learning-plan`, {
       method: "POST",
@@ -32,14 +30,11 @@ generatePlanBtn.addEventListener("click", async () => {
         total_hours: 10
       })
     });
-
     const data = await res.json();
-
     if (data.error) {
       planOutput.textContent = "Error: " + data.error;
       return;
     }
-
     learningPlan = data.learning_plan;
     planOutput.textContent = JSON.stringify(learningPlan, null, 2);
     generateScheduleBtn.disabled = false;
@@ -51,10 +46,8 @@ generatePlanBtn.addEventListener("click", async () => {
 
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
-
   scheduleOutput.textContent = "Generating schedule...";
   approveBtn.disabled = true;
-
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
       method: "POST",
@@ -70,10 +63,8 @@ generateScheduleBtn.addEventListener("click", async () => {
         }
       })
     });
-
     const contentType = res.headers.get("content-type") || "";
     const rawText = await res.text();
-
     let data = null;
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
@@ -82,24 +73,19 @@ generateScheduleBtn.addEventListener("click", async () => {
       scheduleOutput.textContent = `Error generating schedule. Server returned ${res.status}.`;
       return;
     }
-
     console.log("Schedule response:", data);
-
     if (!res.ok) {
       scheduleOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
       return;
     }
-
     if (data.error) {
       scheduleOutput.textContent = "Error: " + data.error;
       return;
     }
-
     if (!data.schedule || data.schedule.length === 0) {
       scheduleOutput.textContent = "No schedule could be generated.";
       return;
     }
-
     schedule = data.schedule;
     savedScheduleId = data.saved_schedule_id || null;
     scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
@@ -122,10 +108,8 @@ approveBtn.addEventListener("click", async () => {
         apply: true
       })
     });
-
     const contentType = res.headers.get("content-type") || "";
     const rawText = await res.text();
-
     let data = {};
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
@@ -134,7 +118,6 @@ approveBtn.addEventListener("click", async () => {
       console.error("Non-JSON response:", rawText);
       return;
     }
-
     if (res.status === 409) {
       alert(data.error || "This schedule has already been applied.");
       approveBtn.disabled = true;
@@ -143,24 +126,19 @@ approveBtn.addEventListener("click", async () => {
       }
       return;
     }
-
     if (!res.ok) {
       alert("Failed to add events: " + (data.error || `Server returned ${res.status}`));
       return;
     }
-
     if (data.error) {
       alert("Failed to add events: " + data.error);
       return;
     }
-
     alert(`Created ${data.events_created?.length || 0} events`);
     approveBtn.disabled = true;
-
     if (typeof loadEvents === "function") {
       loadEvents();
     }
-
     if (typeof loadHistory === "function") {
       loadHistory();
     }
@@ -188,11 +166,9 @@ async function loadHistory() {
         credentials: "include",
       }),
     ]);
-
     const plansData = await plansRes.json();
     const schedulesData = await schedulesRes.json();
     const scheduleEventsData = await scheduleEventsRes.json();
-
     renderLearningPlans(plansData.learning_plans || []);
     renderSchedules(schedulesData.schedules || []);
     renderScheduleEvents(scheduleEventsData.schedule_events || []);
@@ -229,11 +205,9 @@ function renderLearningPlans(plans) {
     historyPlansList.textContent = "No saved learning plans.";
     return;
   }
-
   historyPlansList.innerHTML = plans.slice(0, 5).map((plan, index) => {
     const topics = plan.plan?.learning_plan || [];
     const detailsId = `plan-details-${index}`;
-
     return `
       <div class="card">
         <h4>${plan.goal || "Untitled Goal"}</h4>
@@ -259,12 +233,10 @@ function renderSchedules(schedules) {
     historySchedulesList.textContent = "No saved schedules.";
     return;
   }
-
   historySchedulesList.innerHTML = schedules.slice(0, 5).map((scheduleItem, index) => {
     const sessions = scheduleItem.schedule?.schedule || [];
     const detailsId = `schedule-details-${index}`;
     const statusClass = scheduleItem.status === "applied" ? "applied" : "draft";
-
     return `
       <div class="card">
         <h4>Schedule #${scheduleItem.id}</h4>
@@ -292,7 +264,6 @@ function renderScheduleEvents(events) {
     historyScheduleEventsList.textContent = "No applied calendar events.";
     return;
   }
-
   historyScheduleEventsList.innerHTML = `
     <div class="card">
       ${events.slice(0, 10).map(event => `

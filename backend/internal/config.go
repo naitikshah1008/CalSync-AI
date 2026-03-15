@@ -12,38 +12,30 @@ type Config struct {
 	BackendAddr         string
 	FrontendOrigin      string
 	FrontendRedirectURL string
-
-	GoogleClientID     string
-	GoogleClientSecret string
-	GoogleRedirectURL  string
-
-	SessionCookieName string
-	SessionSecret     string
-
-	DatabaseURL  string
-	BrainBaseURL string
+	GoogleClientID      string
+	GoogleClientSecret  string
+	GoogleRedirectURL   string
+	SessionCookieName   string
+	SessionSecret       string
+	DatabaseURL         string
+	BrainBaseURL        string
 }
 
 func LoadConfig() Config {
 	_ = godotenv.Load(".env")
-
 	cfg := Config{
 		AppEnv:              getEnv("APP_ENV", "development"),
 		BackendAddr:         getEnv("BACKEND_ADDR", ":8080"),
 		FrontendOrigin:      getEnv("FRONTEND_ORIGIN", "http://localhost:8000"),
 		FrontendRedirectURL: getEnv("FRONTEND_REDIRECT_URL", "http://localhost:8000/main.html"),
-
-		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
-		GoogleClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
-		GoogleRedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
-
-		SessionCookieName: getEnv("SESSION_COOKIE_NAME", "calsync_session"),
-		SessionSecret:     os.Getenv("SESSION_SECRET"),
-
-		DatabaseURL:  os.Getenv("DATABASE_URL"),
-		BrainBaseURL: getEnv("BRAIN_BASE_URL", "http://calsync-brain:5005"),
+		GoogleClientID:      os.Getenv("GOOGLE_CLIENT_ID"),
+		GoogleClientSecret:  os.Getenv("GOOGLE_CLIENT_SECRET"),
+		GoogleRedirectURL:   os.Getenv("GOOGLE_REDIRECT_URL"),
+		SessionCookieName:   getEnv("SESSION_COOKIE_NAME", "calsync_session"),
+		SessionSecret:       os.Getenv("SESSION_SECRET"),
+		DatabaseURL:         os.Getenv("DATABASE_URL"),
+		BrainBaseURL:        getEnv("BRAIN_BASE_URL", "http://calsync-brain:5005"),
 	}
-
 	if cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "" || cfg.GoogleRedirectURL == "" {
 		log.Fatal("missing Google OAuth env vars")
 	}
@@ -53,7 +45,6 @@ func LoadConfig() Config {
 	if cfg.DatabaseURL == "" {
 		log.Fatal("missing DATABASE_URL")
 	}
-
 	return cfg
 }
 

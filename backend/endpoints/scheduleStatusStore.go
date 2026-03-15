@@ -18,11 +18,9 @@ func getScheduleStatus(ctx context.Context, scheduleID int, userID int) (*Schedu
 		FROM schedules
 		WHERE id = $1 AND user_id = $2
 	`, scheduleID, userID)
-
 	var rec ScheduleStatusRecord
 	if err := row.Scan(&rec.ID, &rec.UserID, &rec.Status, &rec.AppliedAt); err != nil {
 		return nil, err
 	}
-
 	return &rec, nil
 }

@@ -46,7 +46,6 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to create oauth state", http.StatusInternalServerError)
 		return
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     "google_oauth_state",
 		Value:    state,
@@ -56,72 +55,60 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   false,
 		MaxAge:   600,
 	})
-
 	url := oauthConfig().AuthCodeURL(
 		state,
 		oauth2.AccessTypeOffline,
 		oauth2.SetAuthURLParam("prompt", "consent"),
 	)
-
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
 	if code == "" || state == "" {
 		http.Error(w, "missing code or state", http.StatusBadRequest)
 		return
 	}
-
 	stateCookie, err := r.Cookie("google_oauth_state")
 	if err != nil || stateCookie.Value != state {
 		http.Error(w, "invalid oauth state", http.StatusBadRequest)
 		return
 	}
-
 	token, err := oauthConfig().Exchange(ctx, code)
 	if err != nil {
 		http.Error(w, "failed to exchange code", http.StatusInternalServerError)
 		return
 	}
-
 	rawIDToken, _ := token.Extra("id_token").(string)
 	if rawIDToken == "" {
 		http.Error(w, "missing id_token", http.StatusInternalServerError)
 		return
 	}
-
 	payload, err := idtoken.Validate(ctx, rawIDToken, AppConfig.GoogleClientID)
 	if err != nil {
 		http.Error(w, "invalid id_token", http.StatusUnauthorized)
 		return
 	}
-
 	googleSub, _ := payload.Claims["sub"].(string)
 	email, _ := payload.Claims["email"].(string)
 	name, _ := payload.Claims["name"].(string)
 	picture, _ := payload.Claims["picture"].(string)
-
 	if googleSub == "" || email == "" {
 		http.Error(w, "missing required Google identity claims", http.StatusUnauthorized)
 		return
 	}
-
 	userID, err := upsertUserAndToken(ctx, googleSub, email, name, picture, rawIDToken, token)
 	if err != nil {
 		http.Error(w, "failed to save user session", http.StatusInternalServerError)
 		return
 	}
-
 	sessionID, err := createSession(ctx, userID)
 	if err != nil {
 		http.Error(w, "failed to create session", http.StatusInternalServerError)
 		return
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     AppConfig.SessionCookieName,
 		Value:    sessionID,
@@ -131,7 +118,6 @@ func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 		Secure:   false,
 		MaxAge:   60 * 60 * 24 * 7,
 	})
-
 	http.Redirect(w, r, AppConfig.FrontendRedirectURL, http.StatusSeeOther)
 }
 
@@ -141,7 +127,6 @@ func AuthMeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
 		"user": user,
 	})
@@ -152,7 +137,6 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err == nil && cookie.Value != "" {
 		_, _ = DB.Exec(`DELETE FROM sessions WHERE id = $1`, cookie.Value)
 	}
-
 	http.SetCookie(w, &http.Cookie{
 		Name:     AppConfig.SessionCookieName,
 		Value:    "",
@@ -161,7 +145,6 @@ func LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	})
-
 	writeJSON(w, http.StatusOK, map[string]string{"status": "logged_out"})
 }
 
@@ -177,14 +160,12 @@ func currentUserFromRequest(r *http.Request) (*CurrentUser, error) {
 	if err != nil || cookie.Value == "" {
 		return nil, err
 	}
-
 	row := DB.QueryRow(`
 		SELECT u.id, u.email, COALESCE(u.name, ''), COALESCE(u.picture, '')
 		FROM sessions s
 		JOIN users u ON u.id = s.user_id
 		WHERE s.id = $1 AND s.expires_at > NOW()
 	`, cookie.Value)
-
 	var user CurrentUser
 	if err := row.Scan(&user.ID, &user.Email, &user.Name, &user.Picture); err != nil {
 		return nil, err
@@ -202,7 +183,6 @@ func upsertUserAndToken(
 		return 0, err
 	}
 	defer tx.Rollback()
-
 	var userID int
 	err = tx.QueryRow(`
 		INSERT INTO users (google_sub, email, name, picture, updated_at)
@@ -218,12 +198,10 @@ func upsertUserAndToken(
 	if err != nil {
 		return 0, err
 	}
-
 	scope := ""
 	if v, ok := token.Extra("scope").(string); ok {
 		scope = v
 	}
-
 	_, err = tx.Exec(`
 		INSERT INTO google_tokens (user_id, access_token, refresh_token, token_type, expiry, id_token, scope, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
@@ -240,11 +218,9 @@ func upsertUserAndToken(
 	if err != nil {
 		return 0, err
 	}
-
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-
 	return userID, nil
 }
 
@@ -253,7 +229,6 @@ func createSession(ctx context.Context, userID int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	_, err = DB.ExecContext(ctx, `
 		INSERT INTO sessions (id, user_id, expires_at)
 		VALUES ($1, $2, $3)
@@ -261,7 +236,6 @@ func createSession(ctx context.Context, userID int) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
 	return sessionID, nil
 }
 

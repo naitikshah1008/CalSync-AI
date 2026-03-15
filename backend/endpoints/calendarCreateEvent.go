@@ -25,13 +25,11 @@ func GoogleCreateEventHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	user, err := currentUserFromRequest(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	var payload CreateEventPayload
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
@@ -41,13 +39,11 @@ func GoogleCreateEventHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "summary, start, and end are required", http.StatusBadRequest)
 		return
 	}
-
 	srv, err := getCalendarServiceForUser(r.Context(), user.ID)
 	if err != nil {
 		http.Error(w, "failed to init Google Calendar: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	event := &calendar.Event{
 		Summary:     payload.Summary,
 		Description: payload.Description,
@@ -58,13 +54,11 @@ func GoogleCreateEventHandler(w http.ResponseWriter, r *http.Request) {
 			DateTime: payload.End,
 		},
 	}
-
 	created, err := srv.Events.Insert("primary", event).Do()
 	if err != nil {
 		http.Error(w, "failed to create event: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":   "event_created",
 		"event_id": created.Id,

@@ -7,22 +7,16 @@
 <body>
   <h1>Welcome to CalSync AI</h1>
   <p>Sign in with your Google account to connect your calendar.</p>
-
-  <button id="loginBtn" style="padding: 10px 20px; font-size: 16px;">
-    Sign in with Google
-  </button>
-
+  <button id="loginBtn" style="padding: 10px 20px; font-size: 16px;">Sign in with Google</button>
   <p id="status"></p>
 
- <script>
+  <script>
     const statusEl = document.getElementById("status");
-
     async function checkAuth() {
       try {
         const res = await fetch(`/auth/me`, {
           credentials: "include"
         });
-
         if (res.ok) {
           window.location.href = "main.html";
           return;
@@ -31,14 +25,11 @@
         console.error(e);
       }
     }
-
     document.getElementById("loginBtn").addEventListener("click", () => {
       statusEl.textContent = "Redirecting to Google...";
       window.location.href = `/auth/google/login`;
     });
-
     checkAuth();
-</script>
-
+  </script>
 </body>
 </html>

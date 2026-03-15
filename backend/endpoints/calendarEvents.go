@@ -25,14 +25,11 @@ func getUserToken(ctx context.Context, userID int) (*oauth2.Token, error) {
 		FROM google_tokens
 		WHERE user_id = $1
 	`, userID)
-
 	var accessToken, refreshToken, tokenType string
 	var expiry time.Time
-
 	if err := row.Scan(&accessToken, &refreshToken, &tokenType, &expiry); err != nil {
 		return nil, err
 	}
-
 	return &oauth2.Token{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -53,31 +50,25 @@ func saveUserToken(ctx context.Context, userID int, token *oauth2.Token) error {
 	`, token.AccessToken, token.RefreshToken, token.TokenType, token.Expiry, userID)
 	return err
 }
-
 func getCalendarServiceForUser(ctx context.Context, userID int) (*calendar.Service, error) {
 	token, err := getUserToken(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load user token: %w", err)
 	}
-
 	cfg := oauthConfig()
 	tokenSource := cfg.TokenSource(ctx, token)
-
 	freshToken, err := tokenSource.Token()
 	if err != nil {
 		return nil, fmt.Errorf("failed to refresh token: %w", err)
 	}
-
 	if freshToken.AccessToken != token.AccessToken || !freshToken.Expiry.Equal(token.Expiry) {
 		_ = saveUserToken(ctx, userID, freshToken)
 	}
-
 	httpClient := oauth2.NewClient(ctx, tokenSource)
 	srv, err := calendar.NewService(ctx, option.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create calendar service: %w", err)
 	}
-
 	return srv, nil
 }
 
@@ -91,20 +82,17 @@ func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	user, err := currentUserFromRequest(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	ctx := r.Context()
 	srv, err := getCalendarServiceForUser(ctx, user.ID)
 	if err != nil {
 		http.Error(w, "failed to init calendar service: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	now := time.Now()
 	events, err := srv.Events.List("primary").
 		ShowDeleted(false).
@@ -118,7 +106,6 @@ func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to fetch events: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	out := make([]SimpleEvent, 0, len(events.Items))
 	for _, e := range events.Items {
 		start := ""
@@ -144,7 +131,6 @@ func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
 			End:     end,
 		})
 	}
-
 	writeJSON(w, http.StatusOK, map[string]any{"events": out})
 }
 

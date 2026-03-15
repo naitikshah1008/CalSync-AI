@@ -12,15 +12,12 @@ func InitDB(databaseURL string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	if err := db.Ping(); err != nil {
 		return nil, err
 	}
-
 	if err := runMigrations(db); err != nil {
 		return nil, err
 	}
-
 	log.Println("database connected and migrations applied")
 	return db, nil
 }
@@ -100,16 +97,26 @@ func runMigrations(db *sql.DB) error {
 		);
 		`,
 		`
+		ALTER TABLE schedule_events
+		ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT FALSE;
+		`,
+		`
+		ALTER TABLE schedule_events
+		ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+		`,
+		`
+		ALTER TABLE schedule_events
+		ADD COLUMN IF NOT EXISTS last_verified_at TIMESTAMPTZ;
+		`,
+		`
 		CREATE UNIQUE INDEX IF NOT EXISTS schedule_events_google_event_id_idx
 		ON schedule_events (google_event_id);
 		`,
 	}
-
 	for _, q := range queries {
 		if _, err := db.Exec(q); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }

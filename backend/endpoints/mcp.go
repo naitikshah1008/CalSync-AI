@@ -29,19 +29,16 @@ func MCPHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "only POST allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
 	user, err := currentUserFromRequest(r)
 	if err != nil {
 		writeJSON(w, http.StatusUnauthorized, MCPResponse{Error: "unauthorized"})
 		return
 	}
-
 	var req MCPRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, http.StatusBadRequest, MCPResponse{Error: "invalid JSON"})
 		return
 	}
-
 	switch req.Tool {
 	case "list_calendar_events":
 		events, err := MCPListCalendarEvents(r, user.ID)
@@ -67,7 +64,6 @@ func MCPListCalendarEvents(r *http.Request, userID int) ([]SimpleEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to init calendar service: %w", err)
 	}
-
 	now := time.Now()
 	resp, err := srv.Events.List("primary").
 		ShowDeleted(false).
@@ -80,7 +76,6 @@ func MCPListCalendarEvents(r *http.Request, userID int) ([]SimpleEvent, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch events: %w", err)
 	}
-
 	events := []SimpleEvent{}
 	for _, e := range resp.Items {
 		start := ""
@@ -114,16 +109,13 @@ func MCPCreateCalendarEvent(r *http.Request, userID int, args map[string]interfa
 	description, _ := args["description"].(string)
 	start, _ := args["start"].(string)
 	end, _ := args["end"].(string)
-
 	if summary == "" || start == "" || end == "" {
 		return nil, fmt.Errorf("missing required fields: summary, start, end")
 	}
-
 	srv, err := getCalendarServiceForUser(r.Context(), userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init calendar service: %w", err)
 	}
-
 	event := &calendar.Event{
 		Summary:     summary,
 		Description: description,
@@ -134,12 +126,10 @@ func MCPCreateCalendarEvent(r *http.Request, userID int, args map[string]interfa
 			DateTime: end,
 		},
 	}
-
 	created, err := srv.Events.Insert("primary", event).Do()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create event: %w", err)
 	}
-
 	return map[string]string{
 		"event_id": created.Id,
 		"htmlLink": created.HtmlLink,
