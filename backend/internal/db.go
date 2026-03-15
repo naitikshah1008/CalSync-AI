@@ -58,6 +58,26 @@ func runMigrations(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 		`,
+		`
+		CREATE TABLE IF NOT EXISTS learning_plans (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			goal TEXT NOT NULL,
+			total_hours INTEGER,
+			plan_json JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
+		`
+		CREATE TABLE IF NOT EXISTS schedules (
+			id SERIAL PRIMARY KEY,
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			learning_plan_id INTEGER REFERENCES learning_plans(id) ON DELETE SET NULL,
+			preferences_json JSONB NOT NULL,
+			schedule_json JSONB NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
 	}
 
 	for _, q := range queries {

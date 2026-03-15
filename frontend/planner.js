@@ -70,8 +70,24 @@ generateScheduleBtn.addEventListener("click", async () => {
       })
     });
 
-    const data = await res.json();
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+
+    let data = null;
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    } else {
+      console.error("Non-JSON response:", rawText);
+      scheduleOutput.textContent = `Error generating schedule. Server returned ${res.status}.`;
+      return;
+    }
+
     console.log("Schedule response:", data);
+
+    if (!res.ok) {
+      scheduleOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      return;
+    }
 
     if (data.error) {
       scheduleOutput.textContent = "Error: " + data.error;
@@ -121,3 +137,34 @@ approveBtn.addEventListener("click", async () => {
     console.error(err);
   }
 });
+
+const loadHistoryBtn = document.getElementById("loadHistoryBtn");
+const historyPlansOutput = document.getElementById("historyPlansOutput");
+const historySchedulesOutput = document.getElementById("historySchedulesOutput");
+
+async function loadHistory() {
+  try {
+    const [plansRes, schedulesRes] = await Promise.all([
+      fetch(`${API_BASE}/api/v1/ai/learning-plans`, {
+        credentials: "include",
+      }),
+      fetch(`${API_BASE}/api/v1/ai/schedules`, {
+        credentials: "include",
+      }),
+    ]);
+
+    const plansData = await plansRes.json();
+    const schedulesData = await schedulesRes.json();
+
+    historyPlansOutput.textContent = JSON.stringify(plansData.learning_plans || [], null, 2);
+    historySchedulesOutput.textContent = JSON.stringify(schedulesData.schedules || [], null, 2);
+  } catch (err) {
+    console.error(err);
+    historyPlansOutput.textContent = "Failed to load saved plans.";
+    historySchedulesOutput.textContent = "Failed to load saved schedules.";
+  }
+}
+
+if (loadHistoryBtn) {
+  loadHistoryBtn.addEventListener("click", loadHistory);
+}

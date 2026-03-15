@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 )
 
 type LearningPlanRequest struct {
@@ -49,7 +50,8 @@ func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := currentUserFromRequest(r); err != nil {
+	user, err := currentUserFromRequest(r)
+	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -60,20 +62,40 @@ func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := json.Marshal(req)
-	if err != nil {
-		http.Error(w, "failed to marshal request", http.StatusInternalServerError)
-		return
-	}
-
-	resp, err := http.Post(AppConfig.BrainBaseURL+"/ai/generate-learning-plan", "application/json", bytes.NewReader(body))
+	resp, err := postJSONToBrain("/ai/generate-learning-plan", req)
 	if err != nil {
 		http.Error(w, "failed to call brain service: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
 
-	copyJSONResponse(w, resp)
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "failed to read brain response", http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode >= 400 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(raw)
+		return
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		http.Error(w, "failed to parse brain response", http.StatusBadGateway)
+		return
+	}
+
+	planID, err := saveLearningPlan(r.Context(), user.ID, req.Goal, req.TotalHours, parsed)
+	if err != nil {
+		http.Error(w, "failed to save learning plan", http.StatusInternalServerError)
+		return
+	}
+
+	parsed["saved_learning_plan_id"] = planID
+	writeJSON(w, http.StatusOK, parsed)
 }
 
 func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
@@ -150,13 +172,7 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		"calendar_events": calendarEvents,
 	}
 
-	body, err := json.Marshal(brainPayload)
-	if err != nil {
-		http.Error(w, "failed to marshal request", http.StatusInternalServerError)
-		return
-	}
-
-	resp, err := http.Post(AppConfig.BrainBaseURL+"/ai/generate-schedule", "application/json", bytes.NewReader(body))
+	resp, err := postJSONToBrain("/ai/generate-schedule", brainPayload)
 	if err != nil {
 		http.Error(w, "failed to call brain service: "+err.Error(), http.StatusBadGateway)
 		return
@@ -253,4 +269,79 @@ func copyJSONResponse(w http.ResponseWriter, resp *http.Response) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(body)
+}
+
+func ListLearningPlansHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	items, err := getRecentLearningPlans(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "failed to load learning plans", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"learning_plans": items,
+	})
+}
+
+func ListSchedulesHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	items, err := getRecentSchedules(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "failed to load schedules", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"schedules": items,
+	})
+}
+
+func postJSONToBrain(path string, payload any) (*http.Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{
+		Timeout: 300 * time.Second,
+	}
+
+	req, err := http.NewRequest(http.MethodPost, AppConfig.BrainBaseURL+path, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	return client.Do(req)
 }
