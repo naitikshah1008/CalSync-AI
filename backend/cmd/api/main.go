@@ -30,6 +30,11 @@ func initApp() (http.Handler, internal.Config, error) {
 
 	mux.HandleFunc("/api/v1/calendar/events", endpoints.GoogleListEventsHandler)
 	mux.HandleFunc("/api/v1/calendar/events/create", endpoints.GoogleCreateEventHandler)
+
+	mux.HandleFunc("/api/v1/ai/generate-learning-plan", endpoints.GenerateLearningPlanHandler)
+	mux.HandleFunc("/api/v1/ai/generate-schedule", endpoints.GenerateScheduleHandler)
+	mux.HandleFunc("/api/v1/ai/apply-schedule", endpoints.ApplyScheduleHandler)
+
 	mux.HandleFunc("/mcp", endpoints.MCPHandler)
 
 	return internal.LoggingMiddleware(mux), cfg, nil

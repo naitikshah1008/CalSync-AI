@@ -20,7 +20,8 @@ type Config struct {
 	SessionCookieName string
 	SessionSecret     string
 
-	DatabaseURL string
+	DatabaseURL  string
+	BrainBaseURL string
 }
 
 func LoadConfig() Config {
@@ -39,7 +40,8 @@ func LoadConfig() Config {
 		SessionCookieName: getEnv("SESSION_COOKIE_NAME", "calsync_session"),
 		SessionSecret:     os.Getenv("SESSION_SECRET"),
 
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		DatabaseURL:  os.Getenv("DATABASE_URL"),
+		BrainBaseURL: getEnv("BRAIN_BASE_URL", "http://calsync-brain:5005"),
 	}
 
 	if cfg.GoogleClientID == "" || cfg.GoogleClientSecret == "" || cfg.GoogleRedirectURL == "" {
