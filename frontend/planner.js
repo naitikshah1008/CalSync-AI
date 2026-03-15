@@ -17,7 +17,12 @@ generatePlanBtn.addEventListener("click", async () => {
     alert("Please enter a learning goal");
     return;
   }
+  // Reset old generated schedule immediately when starting a new plan
+  learningPlan = null;
+  schedule = null;
+  savedScheduleId = null;
   planOutput.textContent = "Generating learning plan...";
+  scheduleOutput.textContent = "Generate a new schedule for this plan.";
   generateScheduleBtn.disabled = true;
   approveBtn.disabled = true;
   try {
@@ -30,16 +35,35 @@ generatePlanBtn.addEventListener("click", async () => {
         total_hours: 10
       })
     });
-    const data = await res.json();
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    } else {
+      planOutput.textContent = `Error generating learning plan. Server returned ${res.status}.`;
+      console.error("Non-JSON response:", rawText);
+      return;
+    }
+    if (!res.ok) {
+      planOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      return;
+    }
     if (data.error) {
       planOutput.textContent = "Error: " + data.error;
       return;
     }
     learningPlan = data.learning_plan;
     planOutput.textContent = JSON.stringify(learningPlan, null, 2);
+    // Keep schedule cleared until user generates a new one for this new plan
+    schedule = null;
+    savedScheduleId = null;
+    scheduleOutput.textContent = "Generate a schedule for this learning plan.";
+    approveBtn.disabled = true;
     generateScheduleBtn.disabled = false;
   } catch (err) {
     planOutput.textContent = "Error generating learning plan";
+    scheduleOutput.textContent = "Generate a schedule for this learning plan.";
     console.error(err);
   }
 });
