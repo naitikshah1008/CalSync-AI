@@ -78,6 +78,27 @@ func runMigrations(db *sql.DB) error {
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 		`,
+		`
+		ALTER TABLE schedules
+		ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'draft';
+		`,
+		`
+		ALTER TABLE schedules
+		ADD COLUMN IF NOT EXISTS applied_at TIMESTAMPTZ;
+		`,
+		`
+		CREATE TABLE IF NOT EXISTS schedule_events (
+			id SERIAL PRIMARY KEY,
+			schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			google_event_id TEXT NOT NULL,
+			html_link TEXT,
+			title TEXT NOT NULL,
+			start_time TEXT NOT NULL,
+			end_time TEXT NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
 	}
 
 	for _, q := range queries {

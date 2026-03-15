@@ -2,6 +2,7 @@ const API_BASE = "";
 
 let learningPlan = null;
 let schedule = null;
+let savedScheduleId = null;
 
 const goalInput = document.getElementById("goalInput");
 const planOutput = document.getElementById("planOutput");
@@ -100,6 +101,7 @@ generateScheduleBtn.addEventListener("click", async () => {
     }
 
     schedule = data.schedule;
+    savedScheduleId = data.saved_schedule_id || null;
     scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
     approveBtn.disabled = false;
   } catch (err) {
@@ -115,6 +117,7 @@ approveBtn.addEventListener("click", async () => {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        saved_schedule_id: savedScheduleId,
         schedule: schedule,
         apply: true
       })
@@ -141,27 +144,34 @@ approveBtn.addEventListener("click", async () => {
 const loadHistoryBtn = document.getElementById("loadHistoryBtn");
 const historyPlansOutput = document.getElementById("historyPlansOutput");
 const historySchedulesOutput = document.getElementById("historySchedulesOutput");
+const historyScheduleEventsOutput = document.getElementById("historyScheduleEventsOutput");
 
 async function loadHistory() {
   try {
-    const [plansRes, schedulesRes] = await Promise.all([
+      const [plansRes, schedulesRes, scheduleEventsRes] = await Promise.all([
       fetch(`${API_BASE}/api/v1/ai/learning-plans`, {
         credentials: "include",
       }),
       fetch(`${API_BASE}/api/v1/ai/schedules`, {
         credentials: "include",
       }),
+      fetch(`${API_BASE}/api/v1/ai/schedule-events`, {
+        credentials: "include",
+      }),
     ]);
 
     const plansData = await plansRes.json();
     const schedulesData = await schedulesRes.json();
+    const scheduleEventsData = await scheduleEventsRes.json();
 
     historyPlansOutput.textContent = JSON.stringify(plansData.learning_plans || [], null, 2);
     historySchedulesOutput.textContent = JSON.stringify(schedulesData.schedules || [], null, 2);
+    historyScheduleEventsOutput.textContent = JSON.stringify(scheduleEventsData.schedule_events || [], null, 2);
   } catch (err) {
     console.error(err);
     historyPlansOutput.textContent = "Failed to load saved plans.";
     historySchedulesOutput.textContent = "Failed to load saved schedules.";
+    historyScheduleEventsOutput.textContent = "Failed to load applied schedule events.";
   }
 }
 

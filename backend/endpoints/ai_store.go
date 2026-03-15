@@ -110,7 +110,7 @@ func getRecentLearningPlans(ctx context.Context, userID int) ([]map[string]any, 
 
 func getRecentSchedules(ctx context.Context, userID int) ([]map[string]any, error) {
 	rows, err := DB.QueryContext(ctx, `
-		SELECT id, learning_plan_id, preferences_json, schedule_json, created_at
+		SELECT id, learning_plan_id, preferences_json, schedule_json, status, applied_at, created_at
 		FROM schedules
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -127,9 +127,11 @@ func getRecentSchedules(ctx context.Context, userID int) ([]map[string]any, erro
 		var learningPlanID sql.NullInt32
 		var prefsJSON []byte
 		var scheduleJSON []byte
+		var status string
+		var appliedAt sql.NullString
 		var createdAt string
 
-		if err := rows.Scan(&id, &learningPlanID, &prefsJSON, &scheduleJSON, &createdAt); err != nil {
+		if err := rows.Scan(&id, &learningPlanID, &prefsJSON, &scheduleJSON, &status, &appliedAt, &createdAt); err != nil {
 			return nil, err
 		}
 
@@ -147,10 +149,14 @@ func getRecentSchedules(ctx context.Context, userID int) ([]map[string]any, erro
 			"id":          id,
 			"preferences": prefs,
 			"schedule":    schedule,
+			"status":      status,
 			"created_at":  createdAt,
 		}
 		if learningPlanID.Valid {
 			item["learning_plan_id"] = learningPlanID.Int32
+		}
+		if appliedAt.Valid {
+			item["applied_at"] = appliedAt.String
 		}
 
 		out = append(out, item)

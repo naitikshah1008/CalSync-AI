@@ -27,8 +27,9 @@ type ScheduleRequest struct {
 }
 
 type ApplyScheduleRequest struct {
-	Schedule []ScheduledSession `json:"schedule"`
-	Apply    bool               `json:"apply"`
+	SavedScheduleID *int               `json:"saved_schedule_id"`
+	Schedule        []ScheduledSession `json:"schedule"`
+	Apply           bool               `json:"apply"`
 }
 
 type ScheduledSession struct {
@@ -179,7 +180,33 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	copyJSONResponse(w, resp)
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "failed to read brain response", http.StatusBadGateway)
+		return
+	}
+
+	if resp.StatusCode >= 400 {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(resp.StatusCode)
+		_, _ = w.Write(raw)
+		return
+	}
+
+	var parsed map[string]any
+	if err := json.Unmarshal(raw, &parsed); err != nil {
+		http.Error(w, "failed to parse brain response", http.StatusBadGateway)
+		return
+	}
+
+	scheduleID, err := saveSchedule(r.Context(), user.ID, nil, req.Preferences, parsed)
+	if err != nil {
+		http.Error(w, "failed to save schedule", http.StatusInternalServerError)
+		return
+	}
+
+	parsed["saved_schedule_id"] = scheduleID
+	writeJSON(w, http.StatusOK, parsed)
 }
 
 func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
@@ -239,9 +266,26 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		event := buildCalendarEvent(title, description, session.Start, session.End)
-		if _, err := srv.Events.Insert("primary", event).Do(); err != nil {
+		created, err := srv.Events.Insert("primary", event).Do()
+		if err != nil {
 			http.Error(w, "failed to create calendar event: "+err.Error(), http.StatusInternalServerError)
 			return
+		}
+
+		if req.SavedScheduleID != nil {
+			if err := saveScheduleEvent(
+				r.Context(),
+				*req.SavedScheduleID,
+				user.ID,
+				created.Id,
+				created.HtmlLink,
+				title,
+				session.Start,
+				session.End,
+			); err != nil {
+				http.Error(w, "failed to save schedule event metadata", http.StatusInternalServerError)
+				return
+			}
 		}
 	}
 
@@ -251,6 +295,13 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 			"would_create": previewEvents,
 		})
 		return
+	}
+
+	if req.SavedScheduleID != nil {
+		if err := markScheduleApplied(r.Context(), *req.SavedScheduleID); err != nil {
+			http.Error(w, "failed to mark schedule applied", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -344,4 +395,32 @@ func postJSONToBrain(path string, payload any) (*http.Response, error) {
 	req.Header.Set("Content-Type", "application/json")
 
 	return client.Do(req)
+}
+
+func ListScheduleEventsHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	items, err := getScheduleEvents(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "failed to load schedule events", http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"schedule_events": items,
+	})
 }
