@@ -15,10 +15,9 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
 
-RUN mkdir -p logs data
+RUN mkdir -p logs
 
 COPY --from=build /app/api .
-COPY --from=build /app/data ./data
 
 EXPOSE 8080
 
