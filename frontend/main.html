@@ -1,35 +1,38 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>CalSync AI</title>
 </head>
 <body>
   <h1>CalSync AI</h1>
-  <!-- CALENDAR SECTION -->
+  <p id="userInfo"></p>
+  <button id="logoutBtn">Logout</button>
+
   <section>
     <h2>My Calendar</h2>
     <button id="refreshEventsBtn">Refresh Events</button>
     <p id="eventsStatus"></p>
     <div id="eventsList"></div>
   </section>
+
   <hr />
-  <!-- LEARNING PLANNER -->
+
   <section>
     <h2>Learning Planner</h2>
     <h3>1. Enter Learning Goal</h3>
     <input id="goalInput" type="text" placeholder="e.g. Learn Go for backend jobs" size="50" />
     <button id="generatePlanBtn">Generate Learning Plan</button>
+
     <h3>2. Learning Plan</h3>
     <pre id="planOutput">No plan yet.</pre>
-    <button id="generateScheduleBtn" disabled> Generate Schedule </button>
+    <button id="generateScheduleBtn" disabled>Generate Schedule</button>
+
     <h3>3. Proposed Schedule</h3>
     <pre id="scheduleOutput">No schedule yet.</pre>
-    <button id="approveBtn" disabled>
-      Approve & Add to Calendar
-    </button>
+    <button id="approveBtn" disabled>Approve & Add to Calendar</button>
   </section>
-  <!-- Scripts -->
+
   <script src="main.js"></script>
   <script src="planner.js"></script>
 </body>

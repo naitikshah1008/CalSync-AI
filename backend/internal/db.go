@@ -1,0 +1,70 @@
+package internal
+
+import (
+	"database/sql"
+	"log"
+
+	_ "github.com/lib/pq"
+)
+
+func InitDB(databaseURL string) (*sql.DB, error) {
+	db, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, err
+	}
+
+	if err := runMigrations(db); err != nil {
+		return nil, err
+	}
+
+	log.Println("database connected and migrations applied")
+	return db, nil
+}
+
+func runMigrations(db *sql.DB) error {
+	queries := []string{
+		`
+		CREATE TABLE IF NOT EXISTS users (
+			id SERIAL PRIMARY KEY,
+			google_sub TEXT UNIQUE NOT NULL,
+			email TEXT UNIQUE NOT NULL,
+			name TEXT,
+			picture TEXT,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
+		`
+		CREATE TABLE IF NOT EXISTS google_tokens (
+			user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+			access_token TEXT NOT NULL,
+			refresh_token TEXT,
+			token_type TEXT,
+			expiry TIMESTAMPTZ,
+			id_token TEXT,
+			scope TEXT,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
+		`
+		CREATE TABLE IF NOT EXISTS sessions (
+			id TEXT PRIMARY KEY,
+			user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+			expires_at TIMESTAMPTZ NOT NULL,
+			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+		);
+		`,
+	}
+
+	for _, q := range queries {
+		if _, err := db.Exec(q); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

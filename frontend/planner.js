@@ -23,6 +23,7 @@ generatePlanBtn.addEventListener("click", async () => {
   try {
     const res = await fetch(`${BRAIN_API}/ai/generate-learning-plan`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         goal,
@@ -47,6 +48,7 @@ generateScheduleBtn.addEventListener("click", async () => {
   try {
     const res = await fetch(`${BRAIN_API}/ai/generate-schedule`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         learning_plan: learningPlan,
@@ -81,6 +83,7 @@ approveBtn.addEventListener("click", async () => {
   try {
     const res = await fetch("http://localhost:5005/ai/apply-schedule", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         schedule: schedule,

@@ -1,12 +1,26 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: calsync-postgres
+    environment:
+      POSTGRES_DB: calsync
+      POSTGRES_USER: calsync
+      POSTGRES_PASSWORD: calsyncpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: always
+
   backend:
     build: ./backend
     container_name: calsync-backend
+    env_file:
+      - ./backend/.env
     ports:
       - "8080:8080"
-      # We'll also add MCP port later (e.g. 9000)
-    volumes:
-      - ./backend/data:/app/data   # Persist credentials/token
+    depends_on:
+      - postgres
     restart: always
 
   frontend:
@@ -22,7 +36,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama   # Persist downloaded models
+      - ollama-data:/root/.ollama
     restart: always
 
   brain:
@@ -32,8 +46,9 @@ services:
       - "5005:5005"
     depends_on:
       - ollama
+      - backend
     restart: always
 
 volumes:
   ollama-data:
-  
+  postgres-data:

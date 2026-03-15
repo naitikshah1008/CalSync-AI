@@ -3,6 +3,8 @@ module calsync-ai-backend
 go 1.24.0
 
 require (
+	github.com/joho/godotenv v1.5.1
+	github.com/lib/pq v1.10.9
 	golang.org/x/oauth2 v0.33.0
 	google.golang.org/api v0.256.0
 )

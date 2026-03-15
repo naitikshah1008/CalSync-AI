@@ -1,12 +1,10 @@
-// backend/endpoints/calendar_events.go
 package endpoints
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"golang.org/x/oauth2"
@@ -14,39 +12,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// loadToken reads data/token.json and returns an oauth2.Token
-func loadToken() (*oauth2.Token, error) {
-	data, err := os.ReadFile("data/token.json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read token.json: %w", err)
-	}
-	var token oauth2.Token
-	if err := json.Unmarshal(data, &token); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal token.json: %w", err)
-	}
-	return &token, nil
-}
-
-// getCalendarService builds an authenticated Google Calendar client
-func getCalendarService(ctx context.Context) (*calendar.Service, error) {
-	config, err := loadOAuthConfig()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load OAuth config: %w", err)
-	}
-	token, err := loadToken()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load token: %w", err)
-	}
-	// config.Client will automatically refresh tokens in memory if needed
-	httpClient := config.Client(ctx, token)
-	srv, err := calendar.NewService(ctx, option.WithHTTPClient(httpClient))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create calendar service: %w", err)
-	}
-	return srv, nil
-}
-
-// SimpleEvent is what we return to the frontend
 type SimpleEvent struct {
 	ID      string `json:"id"`
 	Summary string `json:"summary"`
@@ -54,42 +19,107 @@ type SimpleEvent struct {
 	End     string `json:"end"`
 }
 
-// GoogleListEventsHandler handles GET /api/v1/calendar/events
+func getUserToken(ctx context.Context, userID int) (*oauth2.Token, error) {
+	row := DB.QueryRowContext(ctx, `
+		SELECT access_token, COALESCE(refresh_token, ''), COALESCE(token_type, 'Bearer'), expiry
+		FROM google_tokens
+		WHERE user_id = $1
+	`, userID)
+
+	var accessToken, refreshToken, tokenType string
+	var expiry time.Time
+
+	if err := row.Scan(&accessToken, &refreshToken, &tokenType, &expiry); err != nil {
+		return nil, err
+	}
+
+	return &oauth2.Token{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    tokenType,
+		Expiry:       expiry,
+	}, nil
+}
+
+func saveUserToken(ctx context.Context, userID int, token *oauth2.Token) error {
+	_, err := DB.ExecContext(ctx, `
+		UPDATE google_tokens
+		SET access_token = $1,
+		    refresh_token = COALESCE(NULLIF($2, ''), refresh_token),
+		    token_type = $3,
+		    expiry = $4,
+		    updated_at = NOW()
+		WHERE user_id = $5
+	`, token.AccessToken, token.RefreshToken, token.TokenType, token.Expiry, userID)
+	return err
+}
+
+func getCalendarServiceForUser(ctx context.Context, userID int) (*calendar.Service, error) {
+	token, err := getUserToken(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load user token: %w", err)
+	}
+
+	cfg := oauthConfig()
+	tokenSource := cfg.TokenSource(ctx, token)
+
+	freshToken, err := tokenSource.Token()
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token: %w", err)
+	}
+
+	if freshToken.AccessToken != token.AccessToken || !freshToken.Expiry.Equal(token.Expiry) {
+		_ = saveUserToken(ctx, userID, freshToken)
+	}
+
+	httpClient := oauth2.NewClient(ctx, tokenSource)
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(httpClient))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create calendar service: %w", err)
+	}
+
+	return srv, nil
+}
+
 func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
-	// CORS
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	enableCORS(w, r)
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	ctx := r.Context()
-	srv, err := getCalendarService(ctx)
+
+	user, err := currentUserFromRequest(r)
 	if err != nil {
-		http.Error(w, "Failed to init Calendar service: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	ctx := r.Context()
+	srv, err := getCalendarServiceForUser(ctx, user.ID)
+	if err != nil {
+		http.Error(w, "failed to init calendar service: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	now := time.Now()
-	timeMin := now.Format(time.RFC3339)
-	timeMax := now.Add(7 * 24 * time.Hour).Format(time.RFC3339) // next 7 days
-	call := srv.Events.List("primary").
+	events, err := srv.Events.List("primary").
 		ShowDeleted(false).
 		SingleEvents(true).
 		OrderBy("startTime").
-		TimeMin(timeMin).
-		TimeMax(timeMax).
-		MaxResults(10)
-	events, err := call.Do()
+		TimeMin(now.Format(time.RFC3339)).
+		TimeMax(now.Add(7 * 24 * time.Hour).Format(time.RFC3339)).
+		MaxResults(20).
+		Do()
 	if err != nil {
-		http.Error(w, "Failed to fetch events: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "failed to fetch events: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	simpleEvents := make([]SimpleEvent, 0, len(events.Items))
+
+	out := make([]SimpleEvent, 0, len(events.Items))
 	for _, e := range events.Items {
 		start := ""
 		end := ""
@@ -97,7 +127,7 @@ func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
 			if e.Start.DateTime != "" {
 				start = e.Start.DateTime
 			} else {
-				start = e.Start.Date // all-day events
+				start = e.Start.Date
 			}
 		}
 		if e.End != nil {
@@ -107,18 +137,20 @@ func GoogleListEventsHandler(w http.ResponseWriter, r *http.Request) {
 				end = e.End.Date
 			}
 		}
-		simpleEvents = append(simpleEvents, SimpleEvent{
+		out = append(out, SimpleEvent{
 			ID:      e.Id,
-			Summary: e.Summary,
+			Summary: strings.TrimSpace(e.Summary),
 			Start:   start,
 			End:     end,
 		})
 	}
-	w.Header().Set("Content-Type", "application/json")
-	resp := map[string]any{
-		"events": simpleEvents,
-	}
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"events": out})
+}
+
+func enableCORS(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", AppConfig.FrontendOrigin)
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
