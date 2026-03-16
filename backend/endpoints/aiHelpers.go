@@ -132,11 +132,29 @@ func findNextAvailableDay(startDay time.Time, preferences Preferences, calendarE
 	day := startDay
 	for {
 		dayKey := day.Format("2006-01-02")
+		if !matchesDayPreference(day, preferences.DayType) {
+			day = day.AddDate(0, 0, 1)
+			continue
+		}
 		if usedDays[dayKey] || dayHasConflict(day, preferences, calendarEvents) {
 			day = day.AddDate(0, 0, 1)
 			continue
 		}
 		return day
+	}
+}
+
+func matchesDayPreference(day time.Time, dayType string) bool {
+	weekday := day.Weekday()
+	switch dayType {
+	case "weekdays":
+		return weekday >= time.Monday && weekday <= time.Friday
+	case "weekends":
+		return weekday == time.Saturday || weekday == time.Sunday
+	case "both", "":
+		return true
+	default:
+		return true
 	}
 }
 

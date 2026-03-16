@@ -16,10 +16,11 @@ type LearningPlanRequest struct {
 }
 
 type Preferences struct {
-	StartHour            int `json:"start_hour"`
-	EndHour              int `json:"end_hour"`
-	SessionLengthMinutes int `json:"session_length_minutes"`
-	DaysPerWeek          int `json:"days_per_week"`
+	StartHour            int    `json:"start_hour"`
+	EndHour              int    `json:"end_hour"`
+	SessionLengthMinutes int    `json:"session_length_minutes"`
+	DaysPerWeek          int    `json:"days_per_week"`
+	DayType              string `json:"day_type"`
 }
 
 type ScheduleRequest struct {

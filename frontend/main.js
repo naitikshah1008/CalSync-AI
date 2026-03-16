@@ -9,10 +9,16 @@ function updateQuickStats() {
   const statGoal = document.getElementById("statGoal");
   const statTopics = document.getElementById("statTopics");
   const statSessions = document.getElementById("statSessions");
+  const statHoursPerDay = document.getElementById("statHoursPerDay");
+  const statDaysPerWeek = document.getElementById("statDaysPerWeek");
+  const statDayType = document.getElementById("statDayType");
   const goalInput = document.getElementById("goalInput");
+  const hoursPerDayInput = document.getElementById("hoursPerDayInput");
+  const daysPerWeekInput = document.getElementById("daysPerWeekInput");
+  const dayTypeSelect = document.getElementById("dayTypeSelect");
   if (statGoal) {
     const goal = (goalInput?.value || "").trim();
-    statGoal.textContent = goal || "-";
+    statGoal.textContent = goal || "—";
   }
   if (statTopics) {
     const topicsCount = Array.isArray(window.learningPlanState) ? window.learningPlanState.length : 0;
@@ -22,7 +28,22 @@ function updateQuickStats() {
     const sessionsCount = Array.isArray(window.scheduleState) ? window.scheduleState.length : 0;
     statSessions.textContent = String(sessionsCount);
   }
+    if (statHoursPerDay) {
+    statHoursPerDay.textContent = hoursPerDayInput?.value || "-";
+  }
+  if (statDaysPerWeek) {
+    statDaysPerWeek.textContent = daysPerWeekInput?.value || "-";
+  }
+  if (statDayType) {
+    const raw = dayTypeSelect?.value || "";
+    statDayType.textContent =
+      raw === "weekdays" ? "Weekdays" :
+      raw === "weekends" ? "Weekends" :
+      raw === "both" ? "Both" :
+      "-";
+  }
 }
+
 
 async function requireAuth() {
   try {
@@ -118,6 +139,40 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   if (goalInput) {
     goalInput.addEventListener("input", updateQuickStats);
+  }
+  const hoursPerDayInput = document.getElementById("hoursPerDayInput");
+  const daysPerWeekInput = document.getElementById("daysPerWeekInput");
+  const dayTypeSelect = document.getElementById("dayTypeSelect");
+  if (goalInput) {
+    goalInput.addEventListener("input", updateQuickStats);
+  }
+  if (dayTypeSelect) {
+    dayTypeSelect.addEventListener("change", () => {
+      if (typeof syncPreferenceInputs === "function") {
+        syncPreferenceInputs();
+      }
+      if (typeof normalizeDaysPerWeekInput === "function") {
+        normalizeDaysPerWeekInput();
+      }
+      updateQuickStats();
+    });
+  }
+  if (daysPerWeekInput) {
+    daysPerWeekInput.addEventListener("input", () => {
+      if (typeof normalizeDaysPerWeekInput === "function") {
+        normalizeDaysPerWeekInput();
+      }
+      if (typeof syncPreferenceInputs === "function") {
+        syncPreferenceInputs();
+      }
+      updateQuickStats();
+    });
+  }
+  if (hoursPerDayInput) {
+    hoursPerDayInput.addEventListener("input", updateQuickStats);
+  }
+  if (typeof syncPreferenceInputs === "function") {
+    syncPreferenceInputs();
   }
   updateQuickStats();
   loadEvents();

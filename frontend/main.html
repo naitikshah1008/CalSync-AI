@@ -28,18 +28,35 @@
           </p>
 
           <div class="goal-form">
-            <input
-              id="goalInput"
-              class="goal-input"
-              type="text"
-              placeholder="e.g. Learn Go for backend jobs"
-            />
-            <button class="btn btn-primary" id="generatePlanBtn">Generate Learning Plan</button>
+            <input id="goalInput" class="goal-input" type="text" placeholder="e.g. Learn Go for backend jobs"/>
+          </div>
+
+          <div class="preferences-grid">
+            <div class="pref-field">
+              <label for="dayTypeSelect">Study days</label>
+              <select id="dayTypeSelect" class="goal-input small-input">
+                <option value="">Select study days</option>
+                <option value="weekdays">Weekdays only</option>
+                <option value="weekends">Weekends only</option>
+                <option value="both">Weekdays + Weekends</option>
+              </select>
+            </div>
+
+            <div class="pref-field">
+              <label for="daysPerWeekInput">Days per week</label>
+              <input id="daysPerWeekInput" class="goal-input small-input" type="number" min="1" max="7" placeholder="Select study days first" disabled />
+            </div>
+
+            <div class="pref-field">
+              <label for="hoursPerDayInput">Hours per day</label>
+              <input id="hoursPerDayInput" class="goal-input small-input" type="number" min="1" max="12" step="0.5" placeholder="Select days per week first" disabled />
+            </div>
           </div>
 
           <div class="divider-space"></div>
 
           <div class="action-row">
+            <button class="btn btn-primary" id="generatePlanBtn">Generate Learning Plan</button>
             <button class="btn btn-secondary" id="generateScheduleBtn" disabled>Generate Schedule</button>
             <button class="btn btn-success" id="approveBtn" disabled>Approve & Add to Calendar</button>
           </div>
@@ -54,7 +71,7 @@
           <div class="quick-stats">
             <div class="stat-card">
               <div class="stat-label">Current Goal</div>
-              <div class="stat-value" id="statGoal">-</div>
+              <div class="stat-value" id="statGoal">—</div>
             </div>
             <div class="stat-card">
               <div class="stat-label">Plan Topics</div>
@@ -63,6 +80,18 @@
             <div class="stat-card">
               <div class="stat-label">Scheduled Sessions</div>
               <div class="stat-value" id="statSessions">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Hours / Day</div>
+              <div class="stat-value" id="statHoursPerDay">1.5</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Days / Week</div>
+              <div class="stat-value" id="statDaysPerWeek">4</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Study Days</div>
+              <div class="stat-value" id="statDayType">Both</div>
             </div>
           </div>
         </div>

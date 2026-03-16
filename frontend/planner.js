@@ -11,6 +11,9 @@ window.learningPlanState = [];
 window.scheduleState = [];
 
 const goalInput = document.getElementById("goalInput");
+const hoursPerDayInput = document.getElementById("hoursPerDayInput");
+const daysPerWeekInput = document.getElementById("daysPerWeekInput");
+const dayTypeSelect = document.getElementById("dayTypeSelect");
 const planOutput = document.getElementById("planOutput");
 const scheduleOutput = document.getElementById("scheduleOutput");
 const generatePlanBtn = document.getElementById("generatePlanBtn");
@@ -80,8 +83,132 @@ generatePlanBtn.addEventListener("click", async () => {
   }
 });
 
+function syncDaysPerWeekInput() {
+  const dayType = dayTypeSelect?.value || "both";
+  if (!daysPerWeekInput) return;
+  if (dayType === "weekends") {
+    daysPerWeekInput.value = 2;
+    daysPerWeekInput.max = 2;
+    daysPerWeekInput.min = 1;
+    daysPerWeekInput.disabled = true;
+  } else if (dayType === "weekdays") {
+    daysPerWeekInput.disabled = false;
+    daysPerWeekInput.max = 5;
+    daysPerWeekInput.min = 1;
+    if (Number(daysPerWeekInput.value) > 5) {
+      daysPerWeekInput.value = 5;
+    }
+    if (Number(daysPerWeekInput.value) < 1) {
+      daysPerWeekInput.value = 1;
+    }
+  } else {
+    daysPerWeekInput.disabled = false;
+    daysPerWeekInput.max = 7;
+    daysPerWeekInput.min = 1;
+    if (Number(daysPerWeekInput.value) > 7) {
+      daysPerWeekInput.value = 7;
+    }
+    if (Number(daysPerWeekInput.value) < 1) {
+      daysPerWeekInput.value = 1;
+    }
+  }
+}
+
+function syncPreferenceInputs() {
+  const dayType = dayTypeSelect?.value || "";
+  if (!daysPerWeekInput || !hoursPerDayInput) return;
+  // Step 1: Study days must be chosen first
+  if (!dayType) {
+    daysPerWeekInput.disabled = true;
+    daysPerWeekInput.value = "";
+    daysPerWeekInput.placeholder = "Select study days first";
+    hoursPerDayInput.disabled = true;
+    hoursPerDayInput.value = "";
+    hoursPerDayInput.placeholder = "Select days per week first";
+    return;
+  }
+  // Step 2: Configure Days per week based on study-day choice
+  daysPerWeekInput.disabled = false;
+  if (dayType === "weekends") {
+    daysPerWeekInput.min = 1;
+    daysPerWeekInput.max = 2;
+    daysPerWeekInput.value = 2;
+    daysPerWeekInput.disabled = true;
+  } else if (dayType === "weekdays") {
+    daysPerWeekInput.min = 1;
+    daysPerWeekInput.max = 5;
+    if (!daysPerWeekInput.value || Number(daysPerWeekInput.value) > 5) {
+      daysPerWeekInput.value = 5;
+    }
+    if (Number(daysPerWeekInput.value) < 1) {
+      daysPerWeekInput.value = 1;
+    }
+  } else {
+    daysPerWeekInput.min = 1;
+    daysPerWeekInput.max = 7;
+    if (!daysPerWeekInput.value || Number(daysPerWeekInput.value) > 7) {
+      daysPerWeekInput.value = 4;
+    }
+    if (Number(daysPerWeekInput.value) < 1) {
+      daysPerWeekInput.value = 1;
+    }
+  }
+  // Step 3: Hours per day only unlocks after Days per week exists
+  if (!daysPerWeekInput.value) {
+    hoursPerDayInput.disabled = true;
+    hoursPerDayInput.value = "";
+    hoursPerDayInput.placeholder = "Select days per week first";
+  } else {
+    hoursPerDayInput.disabled = false;
+    if (!hoursPerDayInput.value) {
+      hoursPerDayInput.value = 1.5;
+    }
+  }
+}
+
+function normalizeDaysPerWeekInput() {
+  if (!daysPerWeekInput || daysPerWeekInput.disabled) return;
+  const max = Number(daysPerWeekInput.max || 7);
+  const min = Number(daysPerWeekInput.min || 1);
+  let value = Number(daysPerWeekInput.value || min);
+  if (Number.isNaN(value)) value = min;
+  if (value < min) value = min;
+  if (value > max) value = max;
+  daysPerWeekInput.value = value;
+}
+
+function getSchedulePreferences() {
+  const dayType = dayTypeSelect?.value || "";
+  const daysPerWeek = Number(daysPerWeekInput?.value || 0);
+  const hoursPerDay = Number(hoursPerDayInput?.value || 0);
+  let startHour = 18;
+  let endHour = 18 + Math.max(1, Math.round(hoursPerDay || 1.5));
+  if (endHour > 23) {
+    endHour = 23;
+  }
+  return {
+    start_hour: startHour,
+    end_hour: endHour,
+    session_length_minutes: Math.round((hoursPerDay || 1.5) * 60),
+    days_per_week: daysPerWeek || 1,
+    day_type: dayType || "both"
+  };
+}
+
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
+  if (!dayTypeSelect?.value) {
+    alert("Please select Study days first.");
+    return;
+  }
+  if (!daysPerWeekInput?.value) {
+    alert("Please select Days per week.");
+    return;
+  }
+  if (!hoursPerDayInput?.value) {
+    alert("Please enter Hours per day.");
+    return;
+  }
   renderTopScheduleMessage("Generating schedule...");
   approveBtn.disabled = true;
   try {
@@ -92,12 +219,7 @@ generateScheduleBtn.addEventListener("click", async () => {
       body: JSON.stringify({
         saved_learning_plan_id: savedLearningPlanId,
         learning_plan: learningPlan,
-        preferences: {
-          start_hour: 18,
-          end_hour: 22,
-          session_length_minutes: 90,
-          days_per_week: 4
-        }
+        preferences: getSchedulePreferences()
       })
     });
     const contentType = res.headers.get("content-type") || "";
@@ -380,6 +502,18 @@ async function generateScheduleFromSavedPlan(planId) {
     alert("This saved learning plan has no topics.");
     return;
   }
+  if (!dayTypeSelect?.value) {
+    alert("Please select Study days first.");
+    return;
+  }
+  if (!daysPerWeekInput?.value) {
+    alert("Please select Days per week.");
+    return;
+  }
+  if (!hoursPerDayInput?.value) {
+    alert("Please enter Hours per day.");
+    return;
+  }
   learningPlan = extractedPlan;
   savedLearningPlanId = selectedPlan.id;
   savedScheduleId = null;
@@ -396,12 +530,7 @@ async function generateScheduleFromSavedPlan(planId) {
       body: JSON.stringify({
         saved_learning_plan_id: savedLearningPlanId,
         learning_plan: learningPlan,
-        preferences: {
-          start_hour: 18,
-          end_hour: 22,
-          session_length_minutes: 90,
-          days_per_week: 4
-        }
+        preferences: getSchedulePreferences()
       })
     });
     const contentType = res.headers.get("content-type") || "";
@@ -620,6 +749,9 @@ function renderTopScheduleMessage(message) {
   window.scheduleState = [];
   if (typeof updateQuickStats === "function") updateQuickStats();
 }
+
+syncPreferenceInputs();
+normalizeDaysPerWeekInput();
 
 window.toggleDetails = toggleDetails;
 window.deleteLearningPlan = deleteLearningPlan;
