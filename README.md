@@ -147,7 +147,7 @@ backend/data/token.json
 
 ## 🧠 AI Workflow
 
-### Step 1 — Generate Learning Plan
+### Step 1 - Generate Learning Plan
 
 ```
 POST /ai/generate-learning-plan
@@ -157,7 +157,7 @@ Produces structured JSON learning plan.
 
 ---
 
-### Step 2 — Generate Schedule
+### Step 2 - Generate Schedule
 
 ```
 POST /ai/generate-schedule
@@ -172,7 +172,7 @@ Constraints enforced:
 
 ---
 
-### Step 3 — Apply Schedule
+### Step 3 - Apply Schedule
 
 ```
 POST /ai/apply-schedule

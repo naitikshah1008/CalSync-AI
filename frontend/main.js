@@ -5,6 +5,25 @@ function formatEventTime(isoOrDate) {
   return new Date(isoOrDate).toLocaleString();
 }
 
+function updateQuickStats() {
+  const statGoal = document.getElementById("statGoal");
+  const statTopics = document.getElementById("statTopics");
+  const statSessions = document.getElementById("statSessions");
+  const goalInput = document.getElementById("goalInput");
+  if (statGoal) {
+    const goal = (goalInput?.value || "").trim();
+    statGoal.textContent = goal || "-";
+  }
+  if (statTopics) {
+    const topicsCount = Array.isArray(window.learningPlanState) ? window.learningPlanState.length : 0;
+    statTopics.textContent = String(topicsCount);
+  }
+  if (statSessions) {
+    const sessionsCount = Array.isArray(window.scheduleState) ? window.scheduleState.length : 0;
+    statSessions.textContent = String(sessionsCount);
+  }
+}
+
 async function requireAuth() {
   try {
     const res = await fetch(`${BACKEND_BASE}/auth/me`, {
@@ -23,11 +42,28 @@ async function requireAuth() {
   }
 }
 
+function renderCalendarEvents(events) {
+  const listEl = document.getElementById("eventsList");
+  if (!events || events.length === 0) {
+    listEl.innerHTML = `<div class="output-empty">No events found in the next 7 days.</div>`;
+    return;
+  }
+  listEl.innerHTML = events.map(ev => `
+    <div class="calendar-event-card">
+      <div class="calendar-event-head">
+        <h4 class="calendar-event-title">${ev.summary || "(no title)"}</h4>
+        <span class="tag">Calendar</span>
+      </div>
+      <div class="muted-text">
+        ${formatEventTime(ev.start)} -> ${formatEventTime(ev.end)}
+      </div>
+    </div>
+  `).join("");
+}
+
 async function loadEvents() {
   const statusEl = document.getElementById("eventsStatus");
-  const listEl = document.getElementById("eventsList");
   statusEl.textContent = "Loading events...";
-  listEl.innerHTML = "";
   try {
     const res = await fetch(`${BACKEND_BASE}/api/v1/calendar/events`, {
       credentials: "include",
@@ -40,20 +76,12 @@ async function loadEvents() {
     const data = await res.json();
     const events = data.events || [];
     if (events.length === 0) {
-      statusEl.textContent = "No events found in the next 7 days.";
+      statusEl.textContent = "No upcoming events found.";
+      renderCalendarEvents([]);
       return;
     }
     statusEl.textContent = `Loaded ${events.length} event(s).`;
-    events.forEach((ev) => {
-      const div = document.createElement("div");
-      const summary = document.createElement("div");
-      summary.textContent = ev.summary || "(no title)";
-      const times = document.createElement("div");
-      times.textContent = `${formatEventTime(ev.start)} → ${formatEventTime(ev.end)}`;
-      div.appendChild(summary);
-      div.appendChild(times);
-      listEl.appendChild(div);
-    });
+    renderCalendarEvents(events);
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Network error while loading events.";
@@ -81,11 +109,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   const refreshBtn = document.getElementById("refreshEventsBtn");
   const logoutBtn = document.getElementById("logoutBtn");
+  const goalInput = document.getElementById("goalInput");
   if (refreshBtn) {
     refreshBtn.addEventListener("click", loadEvents);
   }
   if (logoutBtn) {
     logoutBtn.addEventListener("click", logout);
   }
+  if (goalInput) {
+    goalInput.addEventListener("input", updateQuickStats);
+  }
+  updateQuickStats();
   loadEvents();
 });

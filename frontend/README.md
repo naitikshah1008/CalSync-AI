@@ -14,4 +14,4 @@ Simple HTML + JavaScript frontend for CalSync-AI.
 
 ## Notes
 - Frontend does not talk to Google directly
-- All calendar writes happen via Brain → MCP → Backend
+- All calendar writes happen via Brain -> MCP -> Backend

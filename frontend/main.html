@@ -3,148 +3,141 @@
 <head>
   <meta charset="UTF-8" />
   <title>CalSync AI</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 24px;
-      line-height: 1.4;
-    }
-
-    section {
-      margin-bottom: 32px;
-    }
-
-    .card {
-      border: 1px solid #ddd;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 12px;
-      background: #fafafa;
-    }
-
-    .card h4 {
-      margin: 0 0 8px 0;
-    }
-
-    .meta {
-      font-size: 14px;
-      color: #555;
-      margin-bottom: 8px;
-    }
-
-    .chip {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: #eee;
-      font-size: 12px;
-      margin-right: 6px;
-    }
-
-    .chip.applied {
-      background: #d9f2d9;
-    }
-
-    .chip.draft {
-      background: #fff1cc;
-    }
-
-    .details {
-      margin-top: 10px;
-      padding: 10px;
-      background: white;
-      border: 1px solid #eee;
-      border-radius: 8px;
-      display: none;
-      white-space: pre-wrap;
-    }
-
-    .details.open {
-      display: block;
-    }
-
-    .small-btn {
-      padding: 6px 10px;
-      font-size: 13px;
-      cursor: pointer;
-      margin-top: 8px;
-    }
-
-    .event-row {
-      border-bottom: 1px solid #eee;
-      padding: 8px 0;
-    }
-
-    .event-row:last-child {
-      border-bottom: none;
-    }
-
-    a.event-link {
-      display: inline-block;
-      margin-top: 6px;
-      font-size: 13px;
-    }
-
-    .action-row {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 8px;
-    }
-
-    .delete-btn {
-      background: #ffe3e3;
-      border: 1px solid #ffb3b3;
-    }
-
-    .delete-btn:hover {
-      background: #ffd6d6;
-    }
-
-    .highlight-card {
-      border: 2px solid #7aa7ff;
-      box-shadow: 0 0 0 3px rgba(122, 167, 255, 0.2);
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <h1>CalSync AI</h1>
-  <p id="userInfo"></p>
-  <button id="logoutBtn">Logout</button>
-  <section>
-    <h2>My Calendar</h2>
-    <button id="refreshEventsBtn">Refresh Events</button>
-    <p id="eventsStatus"></p>
-    <div id="eventsList"></div>
-  </section>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <h1>CalSync AI</h1>
+        <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+      </div>
 
-  <hr />
+      <div class="topbar-actions">
+        <div class="user-pill" id="userInfo">Signed in</div>
+        <button class="btn btn-secondary" id="logoutBtn">Logout</button>
+      </div>
+    </header>
 
-  <section id="plannerSection">
-    <h2>Learning Planner</h2>
-    <h3>1. Enter Learning Goal</h3>
-    <input id="goalInput" type="text" placeholder="e.g. Learn Go for backend jobs" size="50" />
-    <button id="generatePlanBtn">Generate Learning Plan</button>
-    <h3>2. Learning Plan</h3>
-    <pre id="planOutput">No plan yet.</pre>
-    <button id="generateScheduleBtn" disabled>Generate Schedule</button>
-    <h3>3. Proposed Schedule</h3>
-    <pre id="scheduleOutput">No schedule yet.</pre>
-    <button id="approveBtn" disabled>Approve & Add to Calendar</button>
-  </section>
+    <section class="hero-grid" id="plannerSection">
+      <div class="panel">
+        <div class="panel-inner">
+          <h2 class="hero-title">Build a learning path that actually fits your time.</h2>
+          <p class="hero-subtitle">
+            Generate structured learning plans, turn them into realistic schedules, and apply them directly to your calendar with one workflow.
+          </p>
 
-  <hr />
+          <div class="goal-form">
+            <input
+              id="goalInput"
+              class="goal-input"
+              type="text"
+              placeholder="e.g. Learn Go for backend jobs"
+            />
+            <button class="btn btn-primary" id="generatePlanBtn">Generate Learning Plan</button>
+          </div>
 
-  <section>
-    <h2>Saved History</h2>
-    <button id="loadHistoryBtn">Load Saved Plans & Schedules</button>
-    <h3>Saved Learning Plans</h3>
-    <div id="historyPlansList">No saved plans loaded yet.</div>
-    <h3>Saved Schedules</h3>
-    <div id="historySchedulesList">No saved schedules loaded yet.</div>
-    <h3>Applied Calendar Events</h3>
-    <div id="historyScheduleEventsList">No applied schedule events loaded yet.</div>
-  </section>
+          <div class="divider-space"></div>
+
+          <div class="action-row">
+            <button class="btn btn-secondary" id="generateScheduleBtn" disabled>Generate Schedule</button>
+            <button class="btn btn-success" id="approveBtn" disabled>Approve & Add to Calendar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-inner">
+          <h3 class="section-title">Quick Snapshot</h3>
+          <p class="section-subtitle">A lightweight overview of your current workspace.</p>
+
+          <div class="quick-stats">
+            <div class="stat-card">
+              <div class="stat-label">Current Goal</div>
+              <div class="stat-value" id="statGoal">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Plan Topics</div>
+              <div class="stat-value" id="statTopics">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Scheduled Sessions</div>
+              <div class="stat-value" id="statSessions">0</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="main-grid">
+      <div class="panel">
+        <div class="panel-inner">
+          <h3 class="section-title">Learning Plan</h3>
+          <p class="section-subtitle">Readable topic cards instead of raw JSON.</p>
+          <div id="planOutput" class="plan-stack">
+            <div class="output-empty">No plan yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-inner">
+          <h3 class="section-title">Proposed Schedule</h3>
+          <p class="section-subtitle">A structured view of your generated study sessions.</p>
+          <div id="scheduleOutput" class="schedule-stack">
+            <div class="output-empty">No schedule yet.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-bottom: 22px;">
+      <div class="panel-inner">
+        <div class="action-row" style="justify-content: space-between; align-items: center;">
+          <div>
+            <h3 class="section-title" style="margin-bottom: 4px;">My Calendar</h3>
+            <p class="section-subtitle" style="margin-bottom: 0;">Upcoming events from your connected Google Calendar.</p>
+          </div>
+          <button class="btn btn-secondary" id="refreshEventsBtn">Refresh Events</button>
+        </div>
+
+        <div class="divider-space"></div>
+        <p id="eventsStatus" class="muted-text">Loading events…</p>
+        <div id="eventsList" class="events-stack"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-inner">
+        <div class="action-row" style="justify-content: space-between; align-items: center;">
+          <div>
+            <h3 class="section-title" style="margin-bottom: 4px;">Saved History</h3>
+            <p class="section-subtitle" style="margin-bottom: 0;">Your previously generated plans, schedules, and applied calendar events.</p>
+          </div>
+          <button class="btn btn-secondary" id="loadHistoryBtn">Load Saved Plans & Schedules</button>
+        </div>
+
+        <div class="divider-space"></div>
+
+        <div class="history-grid">
+          <div>
+            <h4 class="history-column-title">Saved Learning Plans</h4>
+            <div id="historyPlansList" class="history-stack">No saved plans loaded yet.</div>
+          </div>
+
+          <div>
+            <h4 class="history-column-title">Saved Schedules</h4>
+            <div id="historySchedulesList" class="history-stack">No saved schedules loaded yet.</div>
+          </div>
+
+          <div>
+            <h4 class="history-column-title">Applied Calendar Events</h4>
+            <div id="historyScheduleEventsList" class="history-stack">No applied schedule events loaded yet.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <script src="main.js"></script>
   <script src="planner.js"></script>

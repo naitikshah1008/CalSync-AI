@@ -8,7 +8,7 @@ This service handles:
 
 ## Responsibilities
 - Save credentials.json
-- Exchange OAuth code → token.json
+- Exchange OAuth code -> token.json
 - Refresh tokens automatically
 - Expose calendar tools via /mcp
 

@@ -7,12 +7,19 @@ let savedScheduleId = null;
 let loadedHistoryPlans = [];
 let loadedHistorySchedules = [];
 
+window.learningPlanState = [];
+window.scheduleState = [];
+
 const goalInput = document.getElementById("goalInput");
 const planOutput = document.getElementById("planOutput");
 const scheduleOutput = document.getElementById("scheduleOutput");
 const generatePlanBtn = document.getElementById("generatePlanBtn");
 const generateScheduleBtn = document.getElementById("generateScheduleBtn");
 const approveBtn = document.getElementById("approveBtn");
+const loadHistoryBtn = document.getElementById("loadHistoryBtn");
+const historyPlansList = document.getElementById("historyPlansList");
+const historySchedulesList = document.getElementById("historySchedulesList");
+const historyScheduleEventsList = document.getElementById("historyScheduleEventsList");
 
 generatePlanBtn.addEventListener("click", async () => {
   const goal = goalInput.value.trim();
@@ -25,8 +32,8 @@ generatePlanBtn.addEventListener("click", async () => {
   schedule = null;
   savedLearningPlanId = null;
   savedScheduleId = null;
-  planOutput.textContent = "Generating learning plan...";
-  scheduleOutput.textContent = "Generate a new schedule for this plan.";
+  renderTopPlanMessage("Generating learning plan...");
+  renderTopScheduleMessage("Generate a new schedule for this plan.");
   generateScheduleBtn.disabled = true;
   approveBtn.disabled = true;
   try {
@@ -45,37 +52,37 @@ generatePlanBtn.addEventListener("click", async () => {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
-      planOutput.textContent = `Error generating learning plan. Server returned ${res.status}.`;
+      renderTopPlanMessage(`Error generating learning plan. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
     }
     if (!res.ok) {
-      planOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      renderTopPlanMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
-      planOutput.textContent = "Error: " + data.error;
+      renderTopPlanMessage("Error: " + data.error);
       return;
     }
     learningPlan = data.learning_plan;
     savedLearningPlanId = data.saved_learning_plan_id || null;
-    planOutput.textContent = JSON.stringify(learningPlan, null, 2);
+    renderTopLearningPlan(learningPlan);
     // Keep schedule cleared until user generates a new one for this new plan
     schedule = null;
     savedScheduleId = null;
-    scheduleOutput.textContent = "Generate a schedule for this learning plan.";
+    renderTopScheduleMessage("Generate a schedule for this learning plan.");
     approveBtn.disabled = true;
     generateScheduleBtn.disabled = false;
   } catch (err) {
-    planOutput.textContent = "Error generating learning plan";
-    scheduleOutput.textContent = "Generate a schedule for this learning plan.";
+    renderTopPlanMessage("Error generating learning plan.");
+    renderTopScheduleMessage("Generate a schedule for this learning plan.");
     console.error(err);
   }
 });
 
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
-  scheduleOutput.textContent = "Generating schedule...";
+  renderTopScheduleMessage("Generating schedule...");
   approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
@@ -100,29 +107,29 @@ generateScheduleBtn.addEventListener("click", async () => {
       data = JSON.parse(rawText);
     } else {
       console.error("Non-JSON response:", rawText);
-      scheduleOutput.textContent = `Error generating schedule. Server returned ${res.status}.`;
+      renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       return;
     }
     console.log("Schedule response:", data);
     if (!res.ok) {
-      scheduleOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
-      scheduleOutput.textContent = "Error: " + data.error;
+      renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     if (!data.schedule || data.schedule.length === 0) {
-      scheduleOutput.textContent = "No schedule could be generated.";
+      renderTopScheduleMessage("No schedule could be generated.");
       return;
     }
     schedule = data.schedule;
     savedScheduleId = data.saved_schedule_id || null;
-    scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
+    renderTopSchedule(schedule);
     approveBtn.disabled = false;
   } catch (err) {
     console.error(err);
-    scheduleOutput.textContent = "Error generating schedule.";
+    renderTopScheduleMessage("Error generating schedule.");
   }
 });
 
@@ -177,11 +184,6 @@ approveBtn.addEventListener("click", async () => {
     console.error(err);
   }
 });
-
-const loadHistoryBtn = document.getElementById("loadHistoryBtn");
-const historyPlansOutput = document.getElementById("historyPlansOutput");
-const historySchedulesOutput = document.getElementById("historySchedulesOutput");
-const historyScheduleEventsOutput = document.getElementById("historyScheduleEventsOutput");
 
 async function loadHistory() {
   try {
@@ -274,10 +276,6 @@ async function deleteSchedule(id) {
   }
 }
 
-const historyPlansList = document.getElementById("historyPlansList");
-const historySchedulesList = document.getElementById("historySchedulesList");
-const historyScheduleEventsList = document.getElementById("historyScheduleEventsList");
-
 function formatDateTime(value) {
   if (!value) return "";
   return new Date(value).toLocaleString();
@@ -304,7 +302,7 @@ function renderLearningPlans(plans) {
         <h4>${plan.goal || "Untitled Goal"}</h4>
         <div class="meta">
           Created: ${formatDateTime(plan.created_at)}<br>
-          Total Hours: ${plan.total_hours ?? "—"}<br>
+          Total Hours: ${plan.total_hours ?? "-"}<br>
           Topics: ${topics.length}
         </div>
         <div class="action-row">
@@ -354,8 +352,8 @@ function renderSchedules(schedules) {
         </div>
         <div class="details" id="${detailsId}">
           ${sessions.map(session => `
-            • ${session.topic} — Session ${session.session_number}
-              ${formatDateTime(session.start)} → ${formatDateTime(session.end)}
+            • ${session.topic} - Session ${session.session_number}
+              ${formatDateTime(session.start)} -> ${formatDateTime(session.end)}
               Subtopics: ${session.subtopics?.join(", ") || ""}
           `).join("\n\n")}
           <div class="action-row" style="margin-top: 12px;">
@@ -387,8 +385,8 @@ async function generateScheduleFromSavedPlan(planId) {
   savedScheduleId = null;
   schedule = null;
   goalInput.value = selectedPlan.goal || "";
-  planOutput.textContent = JSON.stringify(learningPlan, null, 2);
-  scheduleOutput.textContent = "Generating schedule...";
+  renderTopLearningPlan(learningPlan);
+  renderTopScheduleMessage("Generating schedule...");
   approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
@@ -412,21 +410,21 @@ async function generateScheduleFromSavedPlan(planId) {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
-      scheduleOutput.textContent = `Error generating schedule. Server returned ${res.status}.`;
+      renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
     }
     if (!res.ok) {
-      scheduleOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
-      scheduleOutput.textContent = "Error: " + data.error;
+      renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     schedule = data.schedule;
     savedScheduleId = data.saved_schedule_id || null;
-    scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
+    renderTopSchedule(schedule);
     approveBtn.disabled = false;
     const plannerSection = document.getElementById("plannerSection");
     if (plannerSection) {
@@ -435,7 +433,7 @@ async function generateScheduleFromSavedPlan(planId) {
     await loadHistory();
   } catch (err) {
     console.error(err);
-    scheduleOutput.textContent = "Error generating schedule.";
+    renderTopScheduleMessage("Error generating schedule.");
   }
 }
 
@@ -448,7 +446,7 @@ async function applySavedSchedule(scheduleId) {
   schedule = selectedSchedule.schedule?.schedule || [];
   savedScheduleId = selectedSchedule.id;
   savedLearningPlanId = selectedSchedule.learning_plan_id || null;
-  scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
+  renderTopSchedule(schedule);
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
       method: "POST",
@@ -498,7 +496,7 @@ async function applySavedSchedule(scheduleId) {
 
 function renderScheduleEvents(events) {
   if (!events || events.length === 0) {
-    historyScheduleEventsList.textContent = "No applied calendar events.";
+    historyScheduleEventsList.textContent = "No currently active applied calendar events.";
     return;
   }
   historyScheduleEventsList.innerHTML = `
@@ -507,7 +505,7 @@ function renderScheduleEvents(events) {
         <div class="event-row">
           <strong>${event.title}</strong><br>
           <span class="meta">
-            ${formatDateTime(event.start_time)} → ${formatDateTime(event.end_time)}<br>
+            ${formatDateTime(event.start_time)} -> ${formatDateTime(event.end_time)}<br>
             Schedule ID: ${event.schedule_id}
           </span>
           ${event.html_link ? `<br><a class="event-link" href="${event.html_link}" target="_blank">Open in Google Calendar</a>` : ""}
@@ -528,7 +526,6 @@ function findScheduleById(scheduleId, schedules) {
 }
 
 function jumpToSavedSchedule(scheduleId) {
-  console.log("jumpToSavedSchedule called with:", scheduleId);
   const selectedSchedule = findScheduleById(scheduleId, loadedHistorySchedules);
   if (!selectedSchedule) {
     alert("Saved schedule not found.");
@@ -538,7 +535,7 @@ function jumpToSavedSchedule(scheduleId) {
   schedule = null;
   savedScheduleId = null;
   approveBtn.disabled = true;
-  scheduleOutput.textContent = "Open the schedule from the Saved Schedules section below.";
+  renderTopScheduleMessage("Open the schedule from the Saved Schedules section below.");
   // Close any other open schedule details first
   document.querySelectorAll('[id^="saved-schedule-details-"]').forEach(el => {
     el.classList.remove("open");
@@ -556,6 +553,72 @@ function jumpToSavedSchedule(scheduleId) {
       cardEl.classList.remove("highlight-card");
     }, 2000);
   }
+}
+
+function renderTopLearningPlan(plan) {
+  if (!Array.isArray(plan) || plan.length === 0) {
+    planOutput.innerHTML = `<div class="output-empty">No plan yet.</div>`;
+    window.learningPlanState = [];
+    if (typeof updateQuickStats === "function") updateQuickStats();
+    return;
+  }
+  window.learningPlanState = plan;
+  planOutput.innerHTML = plan.map(topic => `
+    <div class="plan-topic-card">
+      <div class="plan-topic-head">
+        <div>
+          <h4 class="plan-topic-title">${topic.topic || "Untitled Topic"}</h4>
+          <div class="muted-text">${topic.description || "No description provided."}</div>
+        </div>
+        <div class="action-row" style="justify-content: flex-end;">
+          <span class="chip">${topic.difficulty_rating || "unknown"}</span>
+          <span class="chip">${topic.estimated_hours || 0}h</span>
+        </div>
+      </div>
+      <div class="topic-subtopics">
+        ${(topic.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
+      </div>
+    </div>
+  `).join("");
+  if (typeof updateQuickStats === "function") updateQuickStats();
+}
+
+function renderTopSchedule(scheduleItems) {
+  if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) {
+    scheduleOutput.innerHTML = `<div class="output-empty">No schedule yet.</div>`;
+    window.scheduleState = [];
+    if (typeof updateQuickStats === "function") updateQuickStats();
+    return;
+  }
+  window.scheduleState = scheduleItems;
+  scheduleOutput.innerHTML = scheduleItems.map(session => `
+    <div class="schedule-session-card">
+      <div class="schedule-session-head">
+        <div>
+          <h4 class="schedule-session-title">${session.topic || "Untitled Topic"} - Session ${session.session_number ?? "-"}</h4>
+          <div class="muted-text">
+            ${formatDateTime(session.start)} -> ${formatDateTime(session.end)}
+          </div>
+        </div>
+      </div>
+      <div class="session-subtopics">
+        ${(session.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
+      </div>
+    </div>
+  `).join("");
+  if (typeof updateQuickStats === "function") updateQuickStats();
+}
+
+function renderTopPlanMessage(message) {
+  planOutput.innerHTML = `<div class="output-empty">${message}</div>`;
+  window.learningPlanState = [];
+  if (typeof updateQuickStats === "function") updateQuickStats();
+}
+
+function renderTopScheduleMessage(message) {
+  scheduleOutput.innerHTML = `<div class="output-empty">${message}</div>`;
+  window.scheduleState = [];
+  if (typeof updateQuickStats === "function") updateQuickStats();
 }
 
 window.toggleDetails = toggleDetails;
