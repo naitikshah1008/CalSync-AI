@@ -2,7 +2,10 @@ const API_BASE = "";
 
 let learningPlan = null;
 let schedule = null;
+let savedLearningPlanId = null;
 let savedScheduleId = null;
+let loadedHistoryPlans = [];
+let loadedHistorySchedules = [];
 
 const goalInput = document.getElementById("goalInput");
 const planOutput = document.getElementById("planOutput");
@@ -20,6 +23,7 @@ generatePlanBtn.addEventListener("click", async () => {
   // Reset old generated schedule immediately when starting a new plan
   learningPlan = null;
   schedule = null;
+  savedLearningPlanId = null;
   savedScheduleId = null;
   planOutput.textContent = "Generating learning plan...";
   scheduleOutput.textContent = "Generate a new schedule for this plan.";
@@ -54,6 +58,7 @@ generatePlanBtn.addEventListener("click", async () => {
       return;
     }
     learningPlan = data.learning_plan;
+    savedLearningPlanId = data.saved_learning_plan_id || null;
     planOutput.textContent = JSON.stringify(learningPlan, null, 2);
     // Keep schedule cleared until user generates a new one for this new plan
     schedule = null;
@@ -78,6 +83,7 @@ generateScheduleBtn.addEventListener("click", async () => {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        saved_learning_plan_id: savedLearningPlanId,
         learning_plan: learningPlan,
         preferences: {
           start_hour: 18,
@@ -193,8 +199,10 @@ async function loadHistory() {
     const plansData = await plansRes.json();
     const schedulesData = await schedulesRes.json();
     const scheduleEventsData = await scheduleEventsRes.json();
-    renderLearningPlans(plansData.learning_plans || []);
-    renderSchedules(schedulesData.schedules || []);
+    loadedHistoryPlans = plansData.learning_plans || [];
+    loadedHistorySchedules = schedulesData.schedules || [];
+    renderLearningPlans(loadedHistoryPlans);
+    renderSchedules(loadedHistorySchedules);
     renderScheduleEvents(scheduleEventsData.schedule_events || []);
   } catch (err) {
     console.error(err);
@@ -290,6 +298,7 @@ function renderLearningPlans(plans) {
   historyPlansList.innerHTML = plans.slice(0, 5).map((plan, index) => {
     const topics = plan.plan?.learning_plan || [];
     const detailsId = `plan-details-${index}`;
+    const linkedSchedule = findScheduleForLearningPlan(plan.id, loadedHistorySchedules);
     return `
       <div class="card">
         <h4>${plan.goal || "Untitled Goal"}</h4>
@@ -307,6 +316,13 @@ function renderLearningPlans(plans) {
             • ${topic.topic} (${topic.difficulty_rating || "unknown"}, ${topic.estimated_hours || 0}h)
               - ${topic.subtopics?.join(", ") || ""}
           `).join("\n")}
+          <div class="action-row" style="margin-top: 12px;">
+            ${
+              linkedSchedule
+                ? `<button class="small-btn" onclick="jumpToSavedSchedule(${linkedSchedule.id})">Open Saved Schedule</button>`
+                : `<button class="small-btn" onclick="generateScheduleFromSavedPlan(${plan.id})">Generate Schedule</button>`
+            }
+          </div>
         </div>
       </div>
     `;
@@ -318,12 +334,13 @@ function renderSchedules(schedules) {
     historySchedulesList.textContent = "No saved schedules.";
     return;
   }
-  historySchedulesList.innerHTML = schedules.slice(0, 5).map((scheduleItem, index) => {
+  historySchedulesList.innerHTML = schedules.slice(0, 5).map((scheduleItem) => {
     const sessions = scheduleItem.schedule?.schedule || [];
-    const detailsId = `schedule-details-${index}`;
+    const detailsId = `saved-schedule-details-${scheduleItem.id}`;
+    const cardId = `saved-schedule-card-${scheduleItem.id}`;
     const statusClass = scheduleItem.status === "applied" ? "applied" : "draft";
     return `
-      <div class="card">
+      <div class="card" id="${cardId}">
         <h4>Schedule #${scheduleItem.id}</h4>
         <div class="meta">
           <span class="chip ${statusClass}">${scheduleItem.status || "unknown"}</span>
@@ -341,10 +358,142 @@ function renderSchedules(schedules) {
               ${formatDateTime(session.start)} → ${formatDateTime(session.end)}
               Subtopics: ${session.subtopics?.join(", ") || ""}
           `).join("\n\n")}
+          <div class="action-row" style="margin-top: 12px;">
+            ${
+              scheduleItem.status === "applied"
+                ? `<button class="small-btn" disabled>Already Applied</button>`
+                : `<button class="small-btn" onclick="applySavedSchedule(${scheduleItem.id})">Apply Schedule</button>`
+            }
+          </div>
         </div>
       </div>
     `;
   }).join("");
+}
+
+async function generateScheduleFromSavedPlan(planId) {
+  const selectedPlan = loadedHistoryPlans.find(p => Number(p.id) === Number(planId));
+  if (!selectedPlan) {
+    alert("Saved learning plan not found.");
+    return;
+  }
+  const extractedPlan = selectedPlan.plan?.learning_plan || [];
+  if (!Array.isArray(extractedPlan) || extractedPlan.length === 0) {
+    alert("This saved learning plan has no topics.");
+    return;
+  }
+  learningPlan = extractedPlan;
+  savedLearningPlanId = selectedPlan.id;
+  savedScheduleId = null;
+  schedule = null;
+  goalInput.value = selectedPlan.goal || "";
+  planOutput.textContent = JSON.stringify(learningPlan, null, 2);
+  scheduleOutput.textContent = "Generating schedule...";
+  approveBtn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_learning_plan_id: savedLearningPlanId,
+        learning_plan: learningPlan,
+        preferences: {
+          start_hour: 18,
+          end_hour: 22,
+          session_length_minutes: 90,
+          days_per_week: 4
+        }
+      })
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    } else {
+      scheduleOutput.textContent = `Error generating schedule. Server returned ${res.status}.`;
+      console.error("Non-JSON response:", rawText);
+      return;
+    }
+    if (!res.ok) {
+      scheduleOutput.textContent = "Error: " + (data.error || `Server returned ${res.status}`);
+      return;
+    }
+    if (data.error) {
+      scheduleOutput.textContent = "Error: " + data.error;
+      return;
+    }
+    schedule = data.schedule;
+    savedScheduleId = data.saved_schedule_id || null;
+    scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
+    approveBtn.disabled = false;
+    const plannerSection = document.getElementById("plannerSection");
+    if (plannerSection) {
+      plannerSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    await loadHistory();
+  } catch (err) {
+    console.error(err);
+    scheduleOutput.textContent = "Error generating schedule.";
+  }
+}
+
+async function applySavedSchedule(scheduleId) {
+  const selectedSchedule = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (!selectedSchedule) {
+    alert("Saved schedule not found.");
+    return;
+  }
+  schedule = selectedSchedule.schedule?.schedule || [];
+  savedScheduleId = selectedSchedule.id;
+  savedLearningPlanId = selectedSchedule.learning_plan_id || null;
+  scheduleOutput.textContent = JSON.stringify(schedule, null, 2);
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_schedule_id: savedScheduleId,
+        schedule: schedule,
+        apply: true
+      })
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    } else {
+      alert(`Failed to add events. Server returned ${res.status}.`);
+      console.error("Non-JSON response:", rawText);
+      return;
+    }
+    if (res.status === 409) {
+      alert(data.error || "This schedule has already been applied.");
+      approveBtn.disabled = true;
+      await loadHistory();
+      return;
+    }
+    if (!res.ok) {
+      alert("Failed to add events: " + (data.error || `Server returned ${res.status}`));
+      return;
+    }
+    if (data.error) {
+      alert("Failed to add events: " + data.error);
+      return;
+    }
+    alert(`Created ${data.events_created?.length || 0} events`);
+    approveBtn.disabled = true;
+    if (typeof loadEvents === "function") {
+      loadEvents();
+    }
+    await loadHistory();
+  } catch (err) {
+    alert("Network error while applying schedule");
+    console.error(err);
+  }
 }
 
 function renderScheduleEvents(events) {
@@ -368,6 +517,50 @@ function renderScheduleEvents(events) {
   `;
 }
 
+function findScheduleForLearningPlan(planId, schedules) {
+  if (!planId || !Array.isArray(schedules)) return null;
+  return schedules.find(s => Number(s.learning_plan_id) === Number(planId)) || null;
+}
+
+function findScheduleById(scheduleId, schedules) {
+  if (!scheduleId || !Array.isArray(schedules)) return null;
+  return schedules.find(s => Number(s.id) === Number(scheduleId)) || null;
+}
+
+function jumpToSavedSchedule(scheduleId) {
+  console.log("jumpToSavedSchedule called with:", scheduleId);
+  const selectedSchedule = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (!selectedSchedule) {
+    alert("Saved schedule not found.");
+    return;
+  }
+  // Explicitly clear the top planner area
+  schedule = null;
+  savedScheduleId = null;
+  approveBtn.disabled = true;
+  scheduleOutput.textContent = "Open the schedule from the Saved Schedules section below.";
+  // Close any other open schedule details first
+  document.querySelectorAll('[id^="saved-schedule-details-"]').forEach(el => {
+    el.classList.remove("open");
+  });
+  // Open the matching saved schedule card below
+  const detailsEl = document.getElementById(`saved-schedule-details-${scheduleId}`);
+  const cardEl = document.getElementById(`saved-schedule-card-${scheduleId}`);
+  if (detailsEl) {
+    detailsEl.classList.add("open");
+  }
+  if (cardEl) {
+    cardEl.classList.add("highlight-card");
+    cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    setTimeout(() => {
+      cardEl.classList.remove("highlight-card");
+    }, 2000);
+  }
+}
+
 window.toggleDetails = toggleDetails;
 window.deleteLearningPlan = deleteLearningPlan;
 window.deleteSchedule = deleteSchedule;
+window.generateScheduleFromSavedPlan = generateScheduleFromSavedPlan;
+window.jumpToSavedSchedule = jumpToSavedSchedule;
+window.applySavedSchedule = applySavedSchedule;

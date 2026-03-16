@@ -23,8 +23,9 @@ type Preferences struct {
 }
 
 type ScheduleRequest struct {
-	LearningPlan []map[string]any `json:"learning_plan"`
-	Preferences  Preferences      `json:"preferences"`
+	SavedLearningPlanID *int             `json:"saved_learning_plan_id"`
+	LearningPlan        []map[string]any `json:"learning_plan"`
+	Preferences         Preferences      `json:"preferences"`
 }
 
 type ApplyScheduleRequest struct {
@@ -180,7 +181,15 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to parse brain response", http.StatusBadGateway)
 		return
 	}
-	scheduleID, err := saveSchedule(r.Context(), user.ID, nil, req.Preferences, parsed)
+	rawSchedule, _ := parsed["schedule"].([]any)
+	if len(rawSchedule) == 0 {
+		fallback := buildFallbackSchedule(req.LearningPlan, req.Preferences, calendarEvents)
+		parsed = map[string]any{
+			"schedule": fallback,
+			"source":   "deterministic_fallback",
+		}
+	}
+	scheduleID, err := saveSchedule(r.Context(), user.ID, req.SavedLearningPlanID, req.Preferences, parsed)
 	if err != nil {
 		http.Error(w, "failed to save schedule", http.StatusInternalServerError)
 		return
