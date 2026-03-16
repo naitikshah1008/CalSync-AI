@@ -777,7 +777,8 @@ function renderTopLearningPlan(plan) {
         <div class="action-row" style="justify-content: flex-end; align-items: center;">
           <span class="chip">${topic.difficulty_rating || "unknown"}</span>
           <span class="chip">${topic.estimated_hours || 0}h</span>
-          <button class="icon-btn delete-btn" onclick="deletePlanTopic(${index})" title="Delete topic"${learningPlanLocked ? "disabled" : ""}>✕</button>
+          <button class="icon-btn delete-btn" ${learningPlanLocked ? "disabled" : `onclick="deletePlanTopic(${index})"`} title="Delete topic" aria-label="Delete topic">
+          <span class="trash-icon">🗑</span></button>
         </div>
       </div>
       <div class="topic-subtopics">
@@ -835,7 +836,8 @@ function renderTopSchedule(scheduleItems) {
               </div>
             </div>
             <div class="action-row">
-              <button class="icon-btn delete-btn" onclick="deleteScheduleSession(${index})" title="Delete session" ${scheduleLocked ? "disabled" : ""}>✕</button>
+              <button class="icon-btn delete-btn" ${scheduleLocked ? "disabled" : `onclick="deleteScheduleSession(${index})"`} title="Delete session" aria-label="Delete session">
+              <span class="trash-icon">🗑</span></button>
             </div>
           </div>
           <div class="schedule-edit-grid">
