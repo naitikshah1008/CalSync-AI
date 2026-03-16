@@ -1,5 +1,7 @@
 const BACKEND_BASE = "";
 
+window.currentCalendarEvents = [];
+
 function formatEventTime(isoOrDate) {
   if (!isoOrDate) return "";
   return new Date(isoOrDate).toLocaleString();
@@ -96,6 +98,7 @@ async function loadEvents() {
     }
     const data = await res.json();
     const events = data.events || [];
+    window.currentCalendarEvents = events;
     if (events.length === 0) {
       statusEl.textContent = "No upcoming events found.";
       renderCalendarEvents([]);

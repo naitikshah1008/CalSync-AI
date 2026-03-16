@@ -6,6 +6,9 @@ let savedLearningPlanId = null;
 let savedScheduleId = null;
 let loadedHistoryPlans = [];
 let loadedHistorySchedules = [];
+let scheduleDrafts = {};
+let scheduleLocked = false;
+let learningPlanLocked = false;
 
 window.learningPlanState = [];
 window.scheduleState = [];
@@ -69,6 +72,7 @@ generatePlanBtn.addEventListener("click", async () => {
     }
     learningPlan = data.learning_plan;
     savedLearningPlanId = data.saved_learning_plan_id || null;
+    learningPlanLocked = false;
     renderTopLearningPlan(learningPlan);
     // Keep schedule cleared until user generates a new one for this new plan
     schedule = null;
@@ -197,6 +201,10 @@ function getSchedulePreferences() {
 
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
+  learningPlanLocked = true;
+  renderTopLearningPlan(learningPlan);
+  renderTopScheduleMessage("Generating schedule...");
+  approveBtn.disabled = true;
   if (!dayTypeSelect?.value) {
     alert("Please select Study days first.");
     return;
@@ -209,8 +217,6 @@ generateScheduleBtn.addEventListener("click", async () => {
     alert("Please enter Hours per day.");
     return;
   }
-  renderTopScheduleMessage("Generating schedule...");
-  approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
       method: "POST",
@@ -229,33 +235,54 @@ generateScheduleBtn.addEventListener("click", async () => {
       data = JSON.parse(rawText);
     } else {
       console.error("Non-JSON response:", rawText);
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       return;
     }
     console.log("Schedule response:", data);
     if (!res.ok) {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     if (!data.schedule || data.schedule.length === 0) {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("No schedule could be generated.");
       return;
     }
     schedule = data.schedule;
     savedScheduleId = data.saved_schedule_id || null;
+    scheduleDrafts = {};
+    scheduleLocked = false;
+    learningPlanLocked = true;
+    renderTopLearningPlan(learningPlan);
+    renderTopSchedule(schedule);
+    approveBtn.disabled = false;
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
   } catch (err) {
     console.error(err);
+    learningPlanLocked = false;
+    renderTopLearningPlan(learningPlan);
     renderTopScheduleMessage("Error generating schedule.");
   }
 });
 
 approveBtn.addEventListener("click", async () => {
+  learningPlanLocked = true;
+  scheduleLocked = true;
+  renderTopLearningPlan(learningPlan);
+  renderTopSchedule(schedule);
+  approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
       method: "POST",
@@ -273,35 +300,62 @@ approveBtn.addEventListener("click", async () => {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
+      learningPlanLocked = false;
+      scheduleLocked = false;
+      renderTopLearningPlan(learningPlan);
+      renderTopSchedule(schedule);
+      approveBtn.disabled = false;
       alert(`Failed to add events. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
     }
     if (res.status === 409) {
-      alert(data.error || "This schedule has already been applied.");
+      // already applied: keep locked
+      learningPlanLocked = true;
+      scheduleLocked = true;
+      renderTopLearningPlan(learningPlan);
+      renderTopSchedule(schedule);
       approveBtn.disabled = true;
+      alert(data.error || "This schedule has already been applied.");
       if (typeof loadHistory === "function") {
         loadHistory();
       }
       return;
     }
     if (!res.ok) {
+      learningPlanLocked = false;
+      scheduleLocked = false;
+      renderTopLearningPlan(learningPlan);
+      renderTopSchedule(schedule);
+      approveBtn.disabled = false;
       alert("Failed to add events: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
+      learningPlanLocked = false;
+      scheduleLocked = false;
+      renderTopLearningPlan(learningPlan);
+      renderTopSchedule(schedule);
+      approveBtn.disabled = false;
       alert("Failed to add events: " + data.error);
       return;
     }
     alert(`Created ${data.events_created?.length || 0} events`);
     approveBtn.disabled = true;
+    scheduleLocked = true;
+    learningPlanLocked = true;
+    renderTopLearningPlan(learningPlan);
+    renderTopSchedule(schedule);
     if (typeof loadEvents === "function") {
       loadEvents();
     }
-    if (typeof loadHistory === "function") {
-      loadHistory();
-    }
-  } catch (err) {
+    await loadHistory();
+    } catch (err) {
+    learningPlanLocked = false;
+    scheduleLocked = false;
+    renderTopLearningPlan(learningPlan);
+    renderTopSchedule(schedule);
+    approveBtn.disabled = false;
     alert("Network error while applying schedule");
     console.error(err);
   }
@@ -518,6 +572,7 @@ async function generateScheduleFromSavedPlan(planId) {
   savedLearningPlanId = selectedPlan.id;
   savedScheduleId = null;
   schedule = null;
+  learningPlanLocked = true;
   goalInput.value = selectedPlan.goal || "";
   renderTopLearningPlan(learningPlan);
   renderTopScheduleMessage("Generating schedule...");
@@ -539,20 +594,30 @@ async function generateScheduleFromSavedPlan(planId) {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
     }
     if (!res.ok) {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
+      learningPlanLocked = false;
+      renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     schedule = data.schedule;
     savedScheduleId = data.saved_schedule_id || null;
+    scheduleDrafts = {};
+    scheduleLocked = false;
+    learningPlanLocked = true;
+    renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
     const plannerSection = document.getElementById("plannerSection");
@@ -562,6 +627,8 @@ async function generateScheduleFromSavedPlan(planId) {
     await loadHistory();
   } catch (err) {
     console.error(err);
+    learningPlanLocked = false;
+    renderTopLearningPlan(learningPlan);
     renderTopScheduleMessage("Error generating schedule.");
   }
 }
@@ -576,6 +643,11 @@ async function applySavedSchedule(scheduleId) {
   savedScheduleId = selectedSchedule.id;
   savedLearningPlanId = selectedSchedule.learning_plan_id || null;
   renderTopSchedule(schedule);
+  learningPlanLocked = true;
+  scheduleLocked = true;
+  renderTopLearningPlan(learningPlan);
+  renderTopSchedule(schedule);
+  approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
       method: "POST",
@@ -613,6 +685,8 @@ async function applySavedSchedule(scheduleId) {
     }
     alert(`Created ${data.events_created?.length || 0} events`);
     approveBtn.disabled = true;
+    scheduleLocked = true;
+    renderTopSchedule(schedule);
     if (typeof loadEvents === "function") {
       loadEvents();
     }
@@ -660,6 +734,7 @@ function jumpToSavedSchedule(scheduleId) {
     alert("Saved schedule not found.");
     return;
   }
+  scheduleLocked = selectedSchedule.status === "applied";
   // Explicitly clear the top planner area
   schedule = null;
   savedScheduleId = null;
@@ -692,16 +767,17 @@ function renderTopLearningPlan(plan) {
     return;
   }
   window.learningPlanState = plan;
-  planOutput.innerHTML = plan.map(topic => `
+  planOutput.innerHTML = plan.map((topic, index) => `
     <div class="plan-topic-card">
       <div class="plan-topic-head">
         <div>
           <h4 class="plan-topic-title">${topic.topic || "Untitled Topic"}</h4>
           <div class="muted-text">${topic.description || "No description provided."}</div>
         </div>
-        <div class="action-row" style="justify-content: flex-end;">
+        <div class="action-row" style="justify-content: flex-end; align-items: center;">
           <span class="chip">${topic.difficulty_rating || "unknown"}</span>
           <span class="chip">${topic.estimated_hours || 0}h</span>
+          <button class="icon-btn delete-btn" onclick="deletePlanTopic(${index})" title="Delete topic"${learningPlanLocked ? "disabled" : ""}>✕</button>
         </div>
       </div>
       <div class="topic-subtopics">
@@ -712,6 +788,15 @@ function renderTopLearningPlan(plan) {
   if (typeof updateQuickStats === "function") updateQuickStats();
 }
 
+function deletePlanTopic(index) {
+  if (!Array.isArray(learningPlan) || learningPlanLocked) return;
+  const confirmed = window.confirm("Are you sure you want to delete this topic?");
+  if (!confirmed) return;
+  learningPlan.splice(index, 1);
+  window.learningPlanState = learningPlan;
+  renderTopLearningPlan(learningPlan);
+}
+
 function renderTopSchedule(scheduleItems) {
   if (!Array.isArray(scheduleItems) || scheduleItems.length === 0) {
     scheduleOutput.innerHTML = `<div class="output-empty">No schedule yet.</div>`;
@@ -720,21 +805,95 @@ function renderTopSchedule(scheduleItems) {
     return;
   }
   window.scheduleState = scheduleItems;
-  scheduleOutput.innerHTML = scheduleItems.map(session => `
-    <div class="schedule-session-card">
-      <div class="schedule-session-head">
-        <div>
-          <h4 class="schedule-session-title">${session.topic || "Untitled Topic"} - Session ${session.session_number ?? "-"}</h4>
-          <div class="muted-text">
-            ${formatDateTime(session.start)} -> ${formatDateTime(session.end)}
-          </div>
-        </div>
-      </div>
-      <div class="session-subtopics">
-        ${(session.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
-      </div>
+  scheduleOutput.innerHTML = `
+    <div class="action-row" style="margin-bottom: 14px;">
+      <button class="btn btn-secondary" onclick="showAddScheduleForm()" ${scheduleLocked ? "disabled" : ""}>Add Extra Topic</button>
     </div>
-  `).join("");
+    <div id="addScheduleFormContainer" style="display:none; margin-bottom: 16px;"></div>
+    ${scheduleItems.map((session, index) => {
+      const draft = scheduleDrafts[index] || { ...session, subtopics: [...(session.subtopics || [])] };
+      const start = new Date(draft.start);
+      const end = new Date(draft.end);
+      const weekday = isNaN(start) ? "—" : start.toLocaleDateString(undefined, { weekday: "long" });
+      const dateValue = isNaN(start) ? "" : start.toISOString().slice(0, 10);
+      const startValue = isNaN(start) ? "" : start.toTimeString().slice(0, 5);
+      const endValue = isNaN(end) ? "" : end.toTimeString().slice(0, 5);
+      const isDirty = JSON.stringify(draft) !== JSON.stringify(session);
+      return `
+        <div class="schedule-session-card">
+          <div class="schedule-session-head">
+            <div style="flex: 1;">
+              <input
+                class="edit-input session-title-input"
+                type="text"
+                value="${escapeHtml(draft.topic || "")}"
+                onchange="updateScheduleDraftField(${index}, 'topic', this.value)"
+                ${scheduleLocked ? "disabled" : ""}
+              />
+              <div class="muted-text" style="margin-top: 8px;">
+                <strong>${weekday}</strong>
+              </div>
+            </div>
+            <div class="action-row">
+              <button class="icon-btn delete-btn" onclick="deleteScheduleSession(${index})" title="Delete session" ${scheduleLocked ? "disabled" : ""}>✕</button>
+            </div>
+          </div>
+          <div class="schedule-edit-grid">
+            <div>
+              <label class="field-label">Date</label>
+              <input
+                class="edit-input"
+                type="date"
+                value="${dateValue}"
+                onchange="updateScheduleDraftDateTime(${index}, 'date', this.value)"
+                ${scheduleLocked ? "disabled" : ""}
+              />
+            </div>
+            <div>
+              <label class="field-label">Start Time</label>
+              <input
+                class="edit-input"
+                type="time"
+                value="${startValue}"
+                onchange="updateScheduleDraftDateTime(${index}, 'start', this.value)"
+                ${scheduleLocked ? "disabled" : ""}
+              />
+            </div>
+            <div>
+              <label class="field-label">End Time</label>
+              <input
+                class="edit-input"
+                type="time"
+                value="${endValue}"
+                onchange="updateScheduleDraftDateTime(${index}, 'end', this.value)"
+                ${scheduleLocked ? "disabled" : ""}
+              />
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            <label class="field-label">Subtopics (comma separated)</label>
+            <input
+              class="edit-input"
+              type="text"
+              value="${escapeHtml((draft.subtopics || []).join(", "))}"
+              onchange="updateScheduleDraftSubtopics(${index}, this.value)"
+              ${scheduleLocked ? "disabled" : ""}
+            />
+          </div>
+          ${
+            !scheduleLocked && isDirty
+              ? `
+                <div class="action-row" style="margin-top: 14px;">
+                  <button class="btn btn-primary" onclick="saveScheduleDraft(${index})">Save Changes</button>
+                  <button class="btn btn-secondary" onclick="discardScheduleDraft(${index})">Discard</button>
+                </div>
+              `
+              : ""
+          }
+        </div>
+      `;
+    }).join("")}
+  `;
   if (typeof updateQuickStats === "function") updateQuickStats();
 }
 
@@ -750,6 +909,261 @@ function renderTopScheduleMessage(message) {
   if (typeof updateQuickStats === "function") updateQuickStats();
 }
 
+function escapeHtml(str) {
+  return String(str || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function getScheduleDraft(index) {
+  if (!scheduleDrafts[index]) {
+    scheduleDrafts[index] = {
+      ...schedule[index],
+      subtopics: [...(schedule[index].subtopics || [])]
+    };
+  }
+  return scheduleDrafts[index];
+}
+
+function updateScheduleDraftField(index, field, value) {
+  if (!Array.isArray(schedule) || !schedule[index] || scheduleLocked) return;
+  const draft = getScheduleDraft(index);
+  draft[field] = value;
+  renderTopSchedule(schedule);
+}
+
+function updateScheduleDraftSubtopics(index, value) {
+  if (!Array.isArray(schedule) || !schedule[index] || scheduleLocked) return;
+  const draft = getScheduleDraft(index);
+  draft.subtopics = value
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+  renderTopSchedule(schedule);
+}
+
+function updateScheduleDraftDateTime(index, part, value) {
+  if (!Array.isArray(schedule) || !schedule[index] || scheduleLocked) return;
+  const draft = getScheduleDraft(index);
+  const currentStart = new Date(draft.start);
+  const currentEnd = new Date(draft.end);
+  if (isNaN(currentStart) || isNaN(currentEnd)) return;
+  let startDate = new Date(currentStart);
+  let endDate = new Date(currentEnd);
+  if (part === "date") {
+    const [y, m, d] = value.split("-").map(Number);
+    startDate.setFullYear(y, m - 1, d);
+    endDate.setFullYear(y, m - 1, d);
+  }
+  if (part === "start") {
+    const [h, min] = value.split(":").map(Number);
+    startDate.setHours(h, min, 0, 0);
+  }
+  if (part === "end") {
+    const [h, min] = value.split(":").map(Number);
+    endDate.setHours(h, min, 0, 0);
+  }
+  draft.start = startDate.toISOString();
+  draft.end = endDate.toISOString();
+  renderTopSchedule(schedule);
+}
+
+function discardScheduleDraft(index) {
+  delete scheduleDrafts[index];
+  renderTopSchedule(schedule);
+}
+
+function updateScheduleField(index, field, value) {
+  if (!Array.isArray(schedule) || !schedule[index]) return;
+  schedule[index][field] = value;
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+}
+
+function updateScheduleSubtopics(index, value) {
+  if (!Array.isArray(schedule) || !schedule[index]) return;
+  schedule[index].subtopics = value
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+}
+
+function updateScheduleDateTime(index, part, value) {
+  if (!Array.isArray(schedule) || !schedule[index]) return;
+  const currentStart = new Date(schedule[index].start);
+  const currentEnd = new Date(schedule[index].end);
+  if (isNaN(currentStart) || isNaN(currentEnd)) return;
+  let startDate = new Date(currentStart);
+  let endDate = new Date(currentEnd);
+  if (part === "date") {
+    const [y, m, d] = value.split("-").map(Number);
+    startDate.setFullYear(y, m - 1, d);
+    endDate.setFullYear(y, m - 1, d);
+  }
+  if (part === "start") {
+    const [h, min] = value.split(":").map(Number);
+    startDate.setHours(h, min, 0, 0);
+  }
+  if (part === "end") {
+    const [h, min] = value.split(":").map(Number);
+    endDate.setHours(h, min, 0, 0);
+  }
+  if (endDate <= startDate) {
+    alert("End time must be after start time.");
+    return;
+  }
+  schedule[index].start = startDate.toISOString();
+  schedule[index].end = endDate.toISOString();
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+}
+
+function deleteScheduleSession(index) {
+  if (!Array.isArray(schedule) || scheduleLocked) return;
+  schedule.splice(index, 1);
+  delete scheduleDrafts[index];
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+}
+
+function showAddScheduleForm() {
+  if (scheduleLocked) return;
+  const container = document.getElementById("addScheduleFormContainer");
+  if (!container) return;
+  container.style.display = "block";
+  container.innerHTML = `
+    <div class="schedule-session-card">
+      <h4 class="schedule-session-title">Add Extra Topic</h4>
+      <div class="schedule-edit-grid" style="margin-top: 12px;">
+        <div>
+          <label class="field-label">Main Topic</label>
+          <input id="newTopicInput" class="edit-input" type="text" placeholder="e.g. Java Testing" />
+        </div>
+        <div>
+          <label class="field-label">Date</label>
+          <input id="newDateInput" class="edit-input" type="date" />
+        </div>
+        <div>
+          <label class="field-label">Subtopics</label>
+          <input id="newSubtopicsInput" class="edit-input" type="text" placeholder="e.g. JUnit, Mockito" />
+        </div>
+        <div>
+          <label class="field-label">Start Time</label>
+          <input id="newStartTimeInput" class="edit-input" type="time" />
+        </div>
+        <div>
+          <label class="field-label">End Time</label>
+          <input id="newEndTimeInput" class="edit-input" type="time" />
+        </div>
+      </div>
+      <div class="action-row" style="margin-top: 14px;">
+        <button class="btn btn-primary" onclick="addExtraScheduleTopic()">Add Topic</button>
+        <button class="btn btn-secondary" onclick="hideAddScheduleForm()">Cancel</button>
+      </div>
+    </div>
+  `;
+}
+
+function hideAddScheduleForm() {
+  const container = document.getElementById("addScheduleFormContainer");
+  if (!container) return;
+  container.style.display = "none";
+  container.innerHTML = "";
+}
+
+function addExtraScheduleTopic() {
+  if (scheduleLocked) return;
+  const topic = document.getElementById("newTopicInput")?.value.trim();
+  const date = document.getElementById("newDateInput")?.value;
+  const subtopicsRaw = document.getElementById("newSubtopicsInput")?.value.trim();
+  const startTime = document.getElementById("newStartTimeInput")?.value;
+  const endTime = document.getElementById("newEndTimeInput")?.value;
+  if (!topic || !date || !startTime || !endTime) {
+    alert("Please fill in topic, date, start time, and end time.");
+    return;
+  }
+  const start = new Date(`${date}T${startTime}`);
+  const end = new Date(`${date}T${endTime}`);
+  const conflict = hasScheduleConflict(start.toISOString(), end.toISOString(), null);
+  if (conflict) {
+    alert(conflict);
+    return;
+  }
+  const subtopics = subtopicsRaw
+    ? subtopicsRaw.split(",").map(s => s.trim()).filter(Boolean)
+    : [];
+  if (!Array.isArray(schedule)) {
+    schedule = [];
+  }
+  schedule.push({
+    topic,
+    session_number: 1,
+    subtopics,
+    start: start.toISOString(),
+    end: end.toISOString()
+  });
+  schedule.sort((a, b) => new Date(a.start) - new Date(b.start));
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+  hideAddScheduleForm();
+}
+
+function getCurrentCalendarEventsForConflictCheck() {
+  const raw = window.currentCalendarEvents || [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+function hasScheduleConflict(candidateStart, candidateEnd, ignoreIndex = null) {
+  const start = new Date(candidateStart);
+  const end = new Date(candidateEnd);
+  if (isNaN(start) || isNaN(end) || end <= start) {
+    return "Invalid date/time range.";
+  }
+  // Check against other proposed schedule items
+  for (let i = 0; i < (schedule || []).length; i++) {
+    if (i === ignoreIndex) continue;
+    const existing = schedule[i];
+    const existingStart = new Date(existing.start);
+    const existingEnd = new Date(existing.end);
+    if (start < existingEnd && existingStart < end) {
+      return "This change clashes with another proposed schedule session.";
+    }
+  }
+  // Check against actual loaded calendar events
+  for (const ev of getCurrentCalendarEventsForConflictCheck()) {
+    const existingStart = new Date(ev.start);
+    const existingEnd = new Date(ev.end);
+    if (isNaN(existingStart) || isNaN(existingEnd)) continue;
+    if (start < existingEnd && existingStart < end) {
+      return "This change clashes with an existing calendar event.";
+    }
+  }
+  return null;
+}
+
+function saveScheduleDraft(index) {
+  if (!Array.isArray(schedule) || !schedule[index] || scheduleLocked) return;
+  const draft = scheduleDrafts[index];
+  if (!draft) return;
+  const conflict = hasScheduleConflict(draft.start, draft.end, index);
+  if (conflict) {
+    alert(conflict);
+    return;
+  }
+  schedule[index] = {
+    ...draft,
+    subtopics: [...(draft.subtopics || [])]
+  };
+  delete scheduleDrafts[index];
+  window.scheduleState = schedule;
+  renderTopSchedule(schedule);
+}
+
 syncPreferenceInputs();
 normalizeDaysPerWeekInput();
 
@@ -759,3 +1173,13 @@ window.deleteSchedule = deleteSchedule;
 window.generateScheduleFromSavedPlan = generateScheduleFromSavedPlan;
 window.jumpToSavedSchedule = jumpToSavedSchedule;
 window.applySavedSchedule = applySavedSchedule;
+window.deletePlanTopic = deletePlanTopic;
+window.updateScheduleDraftField = updateScheduleDraftField;
+window.updateScheduleDraftSubtopics = updateScheduleDraftSubtopics;
+window.updateScheduleDraftDateTime = updateScheduleDraftDateTime;
+window.saveScheduleDraft = saveScheduleDraft;
+window.discardScheduleDraft = discardScheduleDraft;
+window.deleteScheduleSession = deleteScheduleSession;
+window.showAddScheduleForm = showAddScheduleForm;
+window.hideAddScheduleForm = hideAddScheduleForm;
+window.addExtraScheduleTopic = addExtraScheduleTopic;
