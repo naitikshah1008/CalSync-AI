@@ -101,8 +101,14 @@
     <section class="main-grid">
       <div class="panel">
         <div class="panel-inner">
-          <h3 class="section-title">Learning Plan</h3>
-          <p class="section-subtitle">Readable topic cards instead of raw JSON.</p>
+          <div class="section-header-row">
+            <div>
+              <h3 class="section-title">Learning Plan</h3>
+              <p class="section-subtitle">Readable topic cards instead of raw JSON.</p>
+            </div>
+            <button id="topSaveLearningPlanBtn" class="btn btn-accent" disabled>Save Learning Plan</button>
+          </div>
+
           <div id="planOutput" class="plan-stack">
             <div class="output-empty">No plan yet.</div>
           </div>
@@ -111,8 +117,14 @@
 
       <div class="panel">
         <div class="panel-inner">
-          <h3 class="section-title">Proposed Schedule</h3>
-          <p class="section-subtitle">A structured view of your generated study sessions.</p>
+          <div class="section-header-row">
+            <div>
+              <h3 class="section-title">Proposed Schedule</h3>
+              <p class="section-subtitle">A structured view of your generated study sessions.</p>
+            </div>
+            <button id="topSaveScheduleBtn" class="btn btn-accent" disabled>Save Schedule</button>
+          </div>
+
           <div id="scheduleOutput" class="schedule-stack">
             <div class="output-empty">No schedule yet.</div>
           </div>

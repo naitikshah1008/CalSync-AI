@@ -42,6 +42,20 @@ type ScheduledSession struct {
 	Start         string   `json:"start"`
 	End           string   `json:"end"`
 }
+type SaveLearningPlanRequest struct {
+	Goal         string           `json:"goal"`
+	TotalHours   int              `json:"total_hours"`
+	LearningPlan []map[string]any `json:"learning_plan"`
+}
+
+type SaveScheduleRequest struct {
+	SavedLearningPlanID *int             `json:"saved_learning_plan_id"`
+	LearningPlanGoal    string           `json:"learning_plan_goal"`
+	LearningPlanHours   int              `json:"learning_plan_total_hours"`
+	LearningPlan        []map[string]any `json:"learning_plan"`
+	Preferences         Preferences      `json:"preferences"`
+	Schedule            []map[string]any `json:"schedule"`
+}
 
 func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w, r)
@@ -51,11 +65,6 @@ func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	user, err := currentUserFromRequest(r)
-	if err != nil {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	var req LearningPlanRequest
@@ -85,12 +94,6 @@ func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to parse brain response", http.StatusBadGateway)
 		return
 	}
-	planID, err := saveLearningPlan(r.Context(), user.ID, req.Goal, req.TotalHours, parsed)
-	if err != nil {
-		http.Error(w, "failed to save learning plan", http.StatusInternalServerError)
-		return
-	}
-	parsed["saved_learning_plan_id"] = planID
 	writeJSON(w, http.StatusOK, parsed)
 }
 
@@ -190,12 +193,6 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 			"source":   "deterministic_fallback",
 		}
 	}
-	scheduleID, err := saveSchedule(r.Context(), user.ID, req.SavedLearningPlanID, req.Preferences, parsed)
-	if err != nil {
-		http.Error(w, "failed to save schedule", http.StatusInternalServerError)
-		return
-	}
-	parsed["saved_schedule_id"] = scheduleID
 	writeJSON(w, http.StatusOK, parsed)
 }
 
@@ -534,5 +531,90 @@ func DeleteScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		"id":                    id,
 		"previous_status":       status,
 		"deleted_google_events": deletedGoogleEvents,
+	})
+}
+
+func SaveLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req SaveLearningPlanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	payload := map[string]any{
+		"learning_plan": req.LearningPlan,
+	}
+	planID, err := saveLearningPlan(r.Context(), user.ID, req.Goal, req.TotalHours, payload)
+	if err != nil {
+		http.Error(w, "failed to save learning plan", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"saved_learning_plan_id": planID,
+	})
+}
+
+func SaveScheduleHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req SaveScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	learningPlanID := req.SavedLearningPlanID
+	if learningPlanID == nil {
+		payload := map[string]any{
+			"learning_plan": req.LearningPlan,
+		}
+		newPlanID, err := saveLearningPlan(
+			r.Context(),
+			user.ID,
+			req.LearningPlanGoal,
+			req.LearningPlanHours,
+			payload,
+		)
+		if err != nil {
+			http.Error(w, "failed to save linked learning plan", http.StatusInternalServerError)
+			return
+		}
+		learningPlanID = &newPlanID
+	}
+	schedulePayload := map[string]any{
+		"schedule": req.Schedule,
+	}
+	scheduleID, err := saveSchedule(r.Context(), user.ID, learningPlanID, req.Preferences, schedulePayload)
+	if err != nil {
+		http.Error(w, "failed to save schedule", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"saved_learning_plan_id": learningPlanID,
+		"saved_schedule_id":      scheduleID,
 	})
 }

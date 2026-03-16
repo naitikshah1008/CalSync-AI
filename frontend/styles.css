@@ -179,6 +179,22 @@ body {
   transform: none;
 }
 
+.btn-accent {
+  background: linear-gradient(135deg, #0ea5b7, #2563eb);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-accent:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-accent:disabled {
+  background: linear-gradient(135deg, rgba(14, 165, 183, 0.32), rgba(37, 99, 235, 0.32));
+  color: rgba(255, 255, 255, 0.55);
+  cursor: not-allowed;
+}
+
 .quick-stats {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -220,6 +236,23 @@ body {
   margin: -4px 0 16px;
   color: var(--muted);
   font-size: 14px;
+}
+
+.section-header-row {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.section-header-row .section-title {
+  margin-bottom: 0;
 }
 
 .plan-stack,

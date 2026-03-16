@@ -9,6 +9,10 @@ let loadedHistorySchedules = [];
 let scheduleDrafts = {};
 let scheduleLocked = false;
 let learningPlanLocked = false;
+let learningPlanSaved = false;
+let scheduleSaved = false;
+let generatedGoalText = "";
+let generatedPlanTotalHours = 10;
 
 window.learningPlanState = [];
 window.scheduleState = [];
@@ -26,6 +30,8 @@ const loadHistoryBtn = document.getElementById("loadHistoryBtn");
 const historyPlansList = document.getElementById("historyPlansList");
 const historySchedulesList = document.getElementById("historySchedulesList");
 const historyScheduleEventsList = document.getElementById("historyScheduleEventsList");
+const topSaveLearningPlanBtn = document.getElementById("topSaveLearningPlanBtn");
+const topSaveScheduleBtn = document.getElementById("topSaveScheduleBtn");
 
 generatePlanBtn.addEventListener("click", async () => {
   const goal = goalInput.value.trim();
@@ -38,6 +44,12 @@ generatePlanBtn.addEventListener("click", async () => {
   schedule = null;
   savedLearningPlanId = null;
   savedScheduleId = null;
+  learningPlanSaved = false;
+  scheduleSaved = false;
+  learningPlanLocked = false;
+  scheduleLocked = false;
+  generatedGoalText = goal;
+  generatedPlanTotalHours = 10;
   renderTopPlanMessage("Generating learning plan...");
   renderTopScheduleMessage("Generate a new schedule for this plan.");
   generateScheduleBtn.disabled = true;
@@ -71,8 +83,12 @@ generatePlanBtn.addEventListener("click", async () => {
       return;
     }
     learningPlan = data.learning_plan;
-    savedLearningPlanId = data.saved_learning_plan_id || null;
+    savedLearningPlanId = null;
+    savedScheduleId = null;
+    learningPlanSaved = false;
+    scheduleSaved = false;
     learningPlanLocked = false;
+    scheduleLocked = false;
     renderTopLearningPlan(learningPlan);
     // Keep schedule cleared until user generates a new one for this new plan
     schedule = null;
@@ -260,10 +276,11 @@ generateScheduleBtn.addEventListener("click", async () => {
       return;
     }
     schedule = data.schedule;
-    savedScheduleId = data.saved_schedule_id || null;
+    savedScheduleId = null;
     scheduleDrafts = {};
     scheduleLocked = false;
     learningPlanLocked = true;
+    scheduleSaved = false;
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
@@ -278,6 +295,18 @@ generateScheduleBtn.addEventListener("click", async () => {
 });
 
 approveBtn.addEventListener("click", async () => {
+  if (!learningPlanSaved) {
+    const ok = await saveLearningPlan();
+    if (!ok) return;
+  }
+  if (!scheduleSaved) {
+    const ok = await saveSchedule();
+    if (!ok) return;
+  }
+  if (!savedScheduleId) {
+    alert("Schedule must be saved before applying.");
+    return;
+  }
   learningPlanLocked = true;
   scheduleLocked = true;
   renderTopLearningPlan(learningPlan);
@@ -310,7 +339,6 @@ approveBtn.addEventListener("click", async () => {
       return;
     }
     if (res.status === 409) {
-      // already applied: keep locked
       learningPlanLocked = true;
       scheduleLocked = true;
       renderTopLearningPlan(learningPlan);
@@ -350,7 +378,7 @@ approveBtn.addEventListener("click", async () => {
       loadEvents();
     }
     await loadHistory();
-    } catch (err) {
+  } catch (err) {
     learningPlanLocked = false;
     scheduleLocked = false;
     renderTopLearningPlan(learningPlan);
@@ -572,6 +600,10 @@ async function generateScheduleFromSavedPlan(planId) {
   savedLearningPlanId = selectedPlan.id;
   savedScheduleId = null;
   schedule = null;
+  learningPlanSaved = true;
+  scheduleSaved = false;
+  generatedGoalText = selectedPlan.goal || "";
+  generatedPlanTotalHours = selectedPlan.total_hours || 10;
   learningPlanLocked = true;
   goalInput.value = selectedPlan.goal || "";
   renderTopLearningPlan(learningPlan);
@@ -613,13 +645,15 @@ async function generateScheduleFromSavedPlan(planId) {
       return;
     }
     schedule = data.schedule;
-    savedScheduleId = data.saved_schedule_id || null;
+    savedScheduleId = null;
     scheduleDrafts = {};
     scheduleLocked = false;
     learningPlanLocked = true;
+    scheduleSaved = false;
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
+    topSaveScheduleBtn.disabled = false;
     const plannerSection = document.getElementById("plannerSection");
     if (plannerSection) {
       plannerSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -642,6 +676,8 @@ async function applySavedSchedule(scheduleId) {
   schedule = selectedSchedule.schedule?.schedule || [];
   savedScheduleId = selectedSchedule.id;
   savedLearningPlanId = selectedSchedule.learning_plan_id || null;
+  learningPlanSaved = true;
+  scheduleSaved = true;
   renderTopSchedule(schedule);
   learningPlanLocked = true;
   scheduleLocked = true;
@@ -759,6 +795,17 @@ function jumpToSavedSchedule(scheduleId) {
   }
 }
 
+function syncTopSaveButtons() {
+  if (topSaveLearningPlanBtn) {
+    const canSavePlan = Array.isArray(learningPlan) && learningPlan.length > 0 && !learningPlanSaved;
+    topSaveLearningPlanBtn.disabled = !canSavePlan;
+  }
+  if (topSaveScheduleBtn) {
+    const canSaveSchedule = Array.isArray(schedule) && schedule.length > 0 && !scheduleSaved && !scheduleLocked;
+    topSaveScheduleBtn.disabled = !canSaveSchedule;
+  }
+}
+
 function renderTopLearningPlan(plan) {
   if (!Array.isArray(plan) || plan.length === 0) {
     planOutput.innerHTML = `<div class="output-empty">No plan yet.</div>`;
@@ -767,7 +814,7 @@ function renderTopLearningPlan(plan) {
     return;
   }
   window.learningPlanState = plan;
-  planOutput.innerHTML = plan.map((topic, index) => `
+  const cardsHtml = plan.map((topic, index) => `
     <div class="plan-topic-card">
       <div class="plan-topic-head">
         <div>
@@ -778,7 +825,8 @@ function renderTopLearningPlan(plan) {
           <span class="chip">${topic.difficulty_rating || "unknown"}</span>
           <span class="chip">${topic.estimated_hours || 0}h</span>
           <button class="icon-btn delete-btn" ${learningPlanLocked ? "disabled" : `onclick="deletePlanTopic(${index})"`} title="Delete topic" aria-label="Delete topic">
-          <span class="trash-icon">🗑</span></button>
+            <span class="trash-icon">🗑</span>
+          </button>
         </div>
       </div>
       <div class="topic-subtopics">
@@ -786,7 +834,16 @@ function renderTopLearningPlan(plan) {
       </div>
     </div>
   `).join("");
+  planOutput.innerHTML = `
+    ${cardsHtml}
+    <div class="action-row" style="margin-top: 14px;">
+      <button class="btn btn-secondary" onclick="saveLearningPlan()" ${learningPlanSaved ? "disabled" : ""}>
+        Save Learning Plan
+      </button>
+    </div>
+  `;
   if (typeof updateQuickStats === "function") updateQuickStats();
+  syncTopSaveButtons();
 }
 
 function deletePlanTopic(index) {
@@ -794,6 +851,8 @@ function deletePlanTopic(index) {
   const confirmed = window.confirm("Are you sure you want to delete this topic?");
   if (!confirmed) return;
   learningPlan.splice(index, 1);
+  learningPlanSaved = false;
+  savedLearningPlanId = null;
   window.learningPlanState = learningPlan;
   renderTopLearningPlan(learningPlan);
 }
@@ -837,7 +896,8 @@ function renderTopSchedule(scheduleItems) {
             </div>
             <div class="action-row">
               <button class="icon-btn delete-btn" ${scheduleLocked ? "disabled" : `onclick="deleteScheduleSession(${index})"`} title="Delete session" aria-label="Delete session">
-              <span class="trash-icon">🗑</span></button>
+                <span class="trash-icon">🗑</span>
+              </button>
             </div>
           </div>
           <div class="schedule-edit-grid">
@@ -895,20 +955,28 @@ function renderTopSchedule(scheduleItems) {
         </div>
       `;
     }).join("")}
+    <div class="action-row" style="margin-top: 14px;">
+      <button class="btn btn-secondary" onclick="saveSchedule()" ${scheduleSaved || scheduleLocked ? "disabled" : ""}>
+        Save Schedule
+      </button>
+    </div>
   `;
   if (typeof updateQuickStats === "function") updateQuickStats();
+  syncTopSaveButtons();
 }
 
 function renderTopPlanMessage(message) {
   planOutput.innerHTML = `<div class="output-empty">${message}</div>`;
   window.learningPlanState = [];
   if (typeof updateQuickStats === "function") updateQuickStats();
+  syncTopSaveButtons();
 }
 
 function renderTopScheduleMessage(message) {
   scheduleOutput.innerHTML = `<div class="output-empty">${message}</div>`;
   window.scheduleState = [];
   if (typeof updateQuickStats === "function") updateQuickStats();
+  syncTopSaveButtons();
 }
 
 function escapeHtml(str) {
@@ -1029,6 +1097,8 @@ function deleteScheduleSession(index) {
   if (!Array.isArray(schedule) || scheduleLocked) return;
   schedule.splice(index, 1);
   delete scheduleDrafts[index];
+  scheduleSaved = false;
+  savedScheduleId = null;
   window.scheduleState = schedule;
   renderTopSchedule(schedule);
 }
@@ -1110,6 +1180,8 @@ function addExtraScheduleTopic() {
     end: end.toISOString()
   });
   schedule.sort((a, b) => new Date(a.start) - new Date(b.start));
+  scheduleSaved = false;
+  savedScheduleId = null;
   window.scheduleState = schedule;
   renderTopSchedule(schedule);
   hideAddScheduleForm();
@@ -1162,8 +1234,92 @@ function saveScheduleDraft(index) {
     subtopics: [...(draft.subtopics || [])]
   };
   delete scheduleDrafts[index];
+  scheduleSaved = false;
+  savedScheduleId = null;
   window.scheduleState = schedule;
   renderTopSchedule(schedule);
+}
+
+if (topSaveLearningPlanBtn) {
+  topSaveLearningPlanBtn.addEventListener("click", saveLearningPlan);
+}
+
+if (topSaveScheduleBtn) {
+  topSaveScheduleBtn.addEventListener("click", saveSchedule);
+}
+
+async function saveLearningPlan() {
+  if (!Array.isArray(learningPlan) || learningPlan.length === 0) {
+    alert("No learning plan to save.");
+    return false;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/save-learning-plan`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        goal: generatedGoalText || goalInput.value.trim(),
+        total_hours: generatedPlanTotalHours || 10,
+        learning_plan: learningPlan
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Failed to save learning plan.");
+      return false;
+    }
+    savedLearningPlanId = Number(data.saved_learning_plan_id);
+    learningPlanSaved = true;
+    renderTopLearningPlan(learningPlan);
+    await loadHistory();
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save learning plan.");
+    return false;
+  }
+}
+
+async function saveSchedule() {
+  if (!Array.isArray(schedule) || schedule.length === 0) {
+    alert("No schedule to save.");
+    return false;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/save-schedule`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_learning_plan_id: savedLearningPlanId,
+        learning_plan_goal: generatedGoalText || goalInput.value.trim(),
+        learning_plan_total_hours: generatedPlanTotalHours || 10,
+        learning_plan: learningPlan,
+        preferences: getSchedulePreferences(),
+        schedule: schedule
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Failed to save schedule.");
+      return false;
+    }
+    if (data.saved_learning_plan_id) {
+      savedLearningPlanId = Number(data.saved_learning_plan_id);
+      learningPlanSaved = true;
+    }
+    savedScheduleId = Number(data.saved_schedule_id);
+    scheduleSaved = true;
+    renderTopLearningPlan(learningPlan);
+    renderTopSchedule(schedule);
+    await loadHistory();
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save schedule.");
+    return false;
+  }
 }
 
 syncPreferenceInputs();
@@ -1175,6 +1331,8 @@ window.deleteSchedule = deleteSchedule;
 window.generateScheduleFromSavedPlan = generateScheduleFromSavedPlan;
 window.jumpToSavedSchedule = jumpToSavedSchedule;
 window.applySavedSchedule = applySavedSchedule;
+window.saveLearningPlan = saveLearningPlan;
+window.saveSchedule = saveSchedule;
 window.deletePlanTopic = deletePlanTopic;
 window.updateScheduleDraftField = updateScheduleDraftField;
 window.updateScheduleDraftSubtopics = updateScheduleDraftSubtopics;
