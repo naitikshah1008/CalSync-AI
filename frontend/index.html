@@ -3,15 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <title>CalSync AI</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
-  <h1>Welcome to CalSync AI</h1>
-  <p>Sign in with your Google account to connect your calendar.</p>
-  <button id="loginBtn" style="padding: 10px 20px; font-size: 16px;">Sign in with Google</button>
-  <p id="status"></p>
-
-  <script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
     const statusEl = document.getElementById("status");
+    const loginBtn = document.getElementById("loginBtn");
+
     async function checkAuth() {
       try {
         const res = await fetch(`/auth/me`, {
@@ -19,17 +17,52 @@
         });
         if (res.ok) {
           window.location.href = "main.html";
-          return;
         }
       } catch (e) {
         console.error(e);
       }
     }
-    document.getElementById("loginBtn").addEventListener("click", () => {
+
+    loginBtn.addEventListener("click", () => {
       statusEl.textContent = "Redirecting to Google...";
       window.location.href = `/auth/google/login`;
     });
+
     checkAuth();
-  </script>
+  });
+</script>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div class="brand-block">
+        <h1>CalSync AI</h1>
+        <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+      </div>
+    </header>
+
+    <section class="hero-grid" style="grid-template-columns: 1fr; max-width: 500px; margin: 60px auto;">
+      <div class="panel">
+        <div class="panel-inner" style="text-align: center;">
+          
+          <h2 class="hero-title" style="font-size: 28px;">
+            Welcome 👋
+          </h2>
+
+          <p class="hero-subtitle">
+            Sign in with your Google account to connect your calendar and start planning.
+          </p>
+
+          <div class="action-row" style="justify-content: center;">
+            <button id="loginBtn" class="btn btn-primary">
+              Sign in with Google
+            </button>
+          </div>
+
+          <p id="status" class="muted-text" style="margin-top: 12px;"></p>
+
+        </div>
+      </div>
+    </section>
+  </div>
 </body>
 </html>
