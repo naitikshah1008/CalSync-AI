@@ -172,7 +172,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   if (hoursPerDayInput) {
-    hoursPerDayInput.addEventListener("input", updateQuickStats);
+    hoursPerDayInput.addEventListener("input", () => {
+      if (typeof normalizeHoursPerDayInput === "function") {
+        normalizeHoursPerDayInput();
+      }
+      updateQuickStats();
+    });
   }
   if (typeof syncPreferenceInputs === "function") {
     syncPreferenceInputs();

@@ -146,3 +146,16 @@ func updateLearningPlan(ctx context.Context, userID int, planID int, plan any) e
 	`, planJSON, planID, userID)
 	return err
 }
+
+func updateSavedSchedule(ctx context.Context, userID int, scheduleID int, schedule any) error {
+	scheduleJSON, err := json.Marshal(schedule)
+	if err != nil {
+		return err
+	}
+	_, err = DB.ExecContext(ctx, `
+		UPDATE schedules
+		SET schedule_json = $1
+		WHERE id = $2 AND user_id = $3
+	`, scheduleJSON, scheduleID, userID)
+	return err
+}

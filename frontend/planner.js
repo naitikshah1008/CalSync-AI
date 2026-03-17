@@ -10,6 +10,8 @@ let scheduleDrafts = {};
 let savedScheduleDrafts = {};
 let savedScheduleDirtyFlags = {};
 let historyGeneratingPlanId = null;
+let openPlanDetails = {};
+let openScheduleDetails = {};
 let scheduleLocked = false;
 let learningPlanLocked = false;
 let learningPlanSaved = false;
@@ -232,12 +234,31 @@ function syncPreferenceInputs() {
     hoursPerDayInput.disabled = true;
     hoursPerDayInput.value = "";
     hoursPerDayInput.placeholder = "Select days per week first";
-  } else {
+    } else {
     hoursPerDayInput.disabled = false;
+    hoursPerDayInput.min = 1;
+    hoursPerDayInput.max = 24;
     if (!hoursPerDayInput.value) {
       hoursPerDayInput.value = 1.5;
     }
+    if (Number(hoursPerDayInput.value) > 24) {
+      hoursPerDayInput.value = 24;
+    }
+    if (Number(hoursPerDayInput.value) < 1) {
+      hoursPerDayInput.value = 1;
+    }
   }
+}
+
+function normalizeHoursPerDayInput() {
+  if (!hoursPerDayInput || hoursPerDayInput.disabled) return;
+  const max = 24;
+  const min = 1;
+  let value = Number(hoursPerDayInput.value || min);
+  if (Number.isNaN(value)) value = min;
+  if (value < min) value = min;
+  if (value > max) value = max;
+  hoursPerDayInput.value = value;
 }
 
 function normalizeDaysPerWeekInput() {
@@ -336,13 +357,17 @@ function updateSavedScheduleDateTime(scheduleId, index, part, value) {
   renderSchedules(loadedHistorySchedules);
 }
 
-function deleteSavedScheduleSession(scheduleId, index) {
+async function deleteSavedScheduleSession(scheduleId, index) {
   const original = findScheduleById(scheduleId, loadedHistorySchedules);
   if (original?.status === "applied") return;
   const draft = getSavedScheduleDraft(scheduleId);
   if (!draft || !draft[index]) return;
+  const confirmed = window.confirm("Delete this saved session?");
+  if (!confirmed) return;
   draft.splice(index, 1);
   savedScheduleDirtyFlags[scheduleId] = true;
+  const ok = await persistSavedSchedule(scheduleId);
+  if (!ok) return;
   renderSchedules(loadedHistorySchedules);
 }
 
@@ -759,10 +784,15 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
-function toggleDetails(id, buttonEl, showLabel = "Show Details", hideLabel = "Hide Details") {
+function toggleDetails(id, buttonEl, showLabel = "Show Details", hideLabel = "Hide Details", type = "plan") {
   const el = document.getElementById(id);
   if (!el) return;
   const isOpen = el.classList.toggle("open");
+  if (type === "plan") {
+    openPlanDetails[id] = isOpen;
+  } else {
+    openScheduleDetails[id] = isOpen;
+  }
   if (buttonEl) {
     buttonEl.textContent = isOpen ? hideLabel : showLabel;
   }
@@ -789,13 +819,13 @@ function renderLearningPlans(plans) {
         <div class="action-row">
           <button
             class="small-btn"
-            onclick="toggleDetails('${detailsId}', this, 'Show Details', 'Hide Details')"
+            onclick="toggleDetails('${detailsId}', this, 'Show Details', 'Hide Details', 'plan')"
           >
-            Show Details
+            ${openPlanDetails[detailsId] ? "Hide Details" : "Show Details"}
           </button>
           <button class="small-btn delete-btn" onclick="deleteLearningPlan(${plan.id})">Delete</button>
         </div>
-        <div class="details" id="${detailsId}">
+        <div class="details ${openPlanDetails[detailsId] ? "open" : ""}" id="${detailsId}">
           <div class="history-plan-topics">
             ${topics.map((topic) => `
               <div class="history-topic-card">
@@ -856,12 +886,15 @@ function renderSchedules(schedules) {
           Sessions: ${sessions.length}
         </div>
         <div class="action-row">
-          <button class="small-btn toggle-sessions-btn" onclick="toggleDetails('${detailsId}', this, 'Show Sessions', 'Hide Sessions')">
-            Show Sessions
+          <button
+            class="small-btn"
+            onclick="toggleDetails('${detailsId}', this, 'Show Sessions', 'Hide Sessions', 'schedule')"
+          >
+            ${openScheduleDetails[detailsId] ? "Hide Sessions" : "Show Sessions"}
           </button>
           <button class="small-btn delete-btn" onclick="deleteSchedule(${scheduleItem.id})">Delete</button>
         </div>
-        <div class="details" id="${detailsId}">
+        <div class="details ${openScheduleDetails[detailsId] ? "open" : ""}" id="${detailsId}">
           <div class="history-schedule-sessions">
             ${sessions.map((session, sessionIndex) => {
               const start = new Date(session.start);
@@ -946,6 +979,9 @@ function renderSchedules(schedules) {
             }).join("")}
           </div>
           <div class="action-row" style="margin-top: 14px;">
+            ${!isApplied
+                ? `<button class="btn btn-secondary" onclick="persistSavedSchedule(${scheduleItem.id})" ${savedScheduleDirtyFlags[scheduleItem.id] ? "" : "disabled"}>Save Changes</button>`
+                : ""}
             <button class="btn btn-accent" id="apply-saved-schedule-btn-${scheduleItem.id}" onclick="applyEditedSavedSchedule(${scheduleItem.id})" ${canApply ? "" : "disabled"}>Apply to Calendar</button>
           </div>
         </div>
@@ -1221,29 +1257,29 @@ function jumpToSavedSchedule(scheduleId) {
     return;
   }
   scheduleLocked = selectedSchedule.status === "applied";
-  // Explicitly clear the top planner area
   schedule = null;
   savedScheduleId = null;
   approveBtn.disabled = true;
   renderTopScheduleMessage("Open the schedule from the Saved Schedules section below.");
-  // Close any other open schedule details first
   document.querySelectorAll('[id^="saved-schedule-details-"]').forEach(el => {
     el.classList.remove("open");
   });
-  document.querySelectorAll('[id^="saved-schedule-card-"] .toggle-sessions-btn').forEach(btn => {
-    btn.textContent = "Show Sessions";
+  document.querySelectorAll('[id^="saved-schedule-card-"]').forEach(card => {
+    const btn = card.querySelector(".small-btn");
+    if (btn) {
+      btn.textContent = "Show Sessions";
+    }
   });
-  // Open the matching saved schedule card below
   const detailsEl = document.getElementById(`saved-schedule-details-${scheduleId}`);
   const cardEl = document.getElementById(`saved-schedule-card-${scheduleId}`);
   if (detailsEl) {
     detailsEl.classList.add("open");
   }
-  const toggleBtn = cardEl?.querySelector(".toggle-sessions-btn");
-  if (toggleBtn) {
-    toggleBtn.textContent = "Hide Sessions";
-  }
   if (cardEl) {
+    const btn = cardEl.querySelector(".small-btn");
+    if (btn) {
+      btn.textContent = "Hide Sessions";
+    }
     cardEl.classList.add("highlight-card");
     cardEl.scrollIntoView({ behavior: "smooth", block: "center" });
     setTimeout(() => {
@@ -1800,6 +1836,35 @@ async function saveSchedule() {
   }
 }
 
+async function persistSavedSchedule(scheduleId) {
+  const draft = getSavedScheduleDraft(scheduleId);
+  if (!draft) return false;
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/schedules/update`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_schedule_id: scheduleId,
+        schedule: draft
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Failed to save saved schedule changes.");
+      return false;
+    }
+    savedScheduleDirtyFlags[scheduleId] = false;
+    delete savedScheduleDrafts[scheduleId];
+    await loadHistory();
+    return true;
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save saved schedule changes.");
+    return false;
+  }
+}
+
 async function deleteAppliedSchedule() {
   if (!savedScheduleId) {
     alert("No applied schedule is selected.");
@@ -1887,6 +1952,7 @@ document.addEventListener("mousemove", (e) => {
 
 syncPreferenceInputs();
 normalizeDaysPerWeekInput();
+normalizeHoursPerDayInput();
 syncTopSaveButtons();
 
 if (deleteAppliedBtn) {
@@ -1917,3 +1983,4 @@ window.updateSavedScheduleSubtopics = updateSavedScheduleSubtopics;
 window.updateSavedScheduleDateTime = updateSavedScheduleDateTime;
 window.deleteSavedScheduleSession = deleteSavedScheduleSession;
 window.applyEditedSavedSchedule = applyEditedSavedSchedule;
+window.persistSavedSchedule = persistSavedSchedule;

@@ -415,6 +415,23 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 18px;
+  align-items: start;
+}
+
+.history-grid > div {
+  align-self: start;
+}
+
+.history-schedule-sessions {
+  margin-top: 8px;
+}
+
+.history-schedule-sessions .schedule-session-card {
+  margin-bottom: 14px;
+}
+
+.history-schedule-sessions .schedule-session-card:last-child {
+  margin-bottom: 0;
 }
 
 .history-column-title {
@@ -620,6 +637,11 @@ select:disabled {
   gap: 14px;
 }
 
+.history-plan-topics,
+.history-schedule-sessions {
+  margin-top: 6px;
+}
+
 .history-topic-card {
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -628,11 +650,10 @@ select:disabled {
 }
 
 .details {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
+  margin-top: 14px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   display: none;
   white-space: normal;
 }
