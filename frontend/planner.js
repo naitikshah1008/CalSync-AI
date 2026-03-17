@@ -26,6 +26,7 @@ const scheduleOutput = document.getElementById("scheduleOutput");
 const generatePlanBtn = document.getElementById("generatePlanBtn");
 const generateScheduleBtn = document.getElementById("generateScheduleBtn");
 const approveBtn = document.getElementById("approveBtn");
+const deleteAppliedBtn = document.getElementById("deleteAppliedBtn");
 const loadHistoryBtn = document.getElementById("loadHistoryBtn");
 const historyPlansList = document.getElementById("historyPlansList");
 const historySchedulesList = document.getElementById("historySchedulesList");
@@ -51,6 +52,9 @@ generatePlanBtn.addEventListener("click", async () => {
   scheduleSaved = false;
   learningPlanLocked = false;
   scheduleLocked = false;
+  if (deleteAppliedBtn) {
+    deleteAppliedBtn.disabled = true;
+  }
   generatedGoalText = goal;
   generatedPlanTotalHours = 10;
   renderTopPlanMessage("Generating learning plan...");
@@ -125,6 +129,29 @@ function setInputsDisabled({ goal = false, preferences = false } = {}) {
   if (dayTypeSelect) dayTypeSelect.disabled = preferences;
   if (daysPerWeekInput) daysPerWeekInput.disabled = preferences;
   if (hoursPerDayInput) hoursPerDayInput.disabled = preferences;
+}
+
+function setAppliedScheduleUI(isApplied) {
+  if (approveBtn) {
+    approveBtn.disabled = isApplied;
+  }
+  if (deleteAppliedBtn) {
+    deleteAppliedBtn.disabled = !isApplied;
+  }
+  scheduleLocked = isApplied;
+  learningPlanLocked = isApplied;
+  if (!isApplied) {
+    setInputsDisabled({
+      goal: true,
+      preferences: false
+    });
+  }
+  if (Array.isArray(learningPlan)) {
+    renderTopLearningPlan(learningPlan);
+  }
+  if (Array.isArray(schedule)) {
+    renderTopSchedule(schedule);
+  }
 }
 
 function syncDaysPerWeekInput() {
@@ -241,6 +268,9 @@ function getSchedulePreferences() {
 
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
+  if (deleteAppliedBtn) {
+    deleteAppliedBtn.disabled = true;
+  }
   generatePlanBtn.disabled = true;
   generateScheduleBtn.disabled = true;
   setInputsDisabled({
@@ -334,6 +364,9 @@ generateScheduleBtn.addEventListener("click", async () => {
     scheduleLocked = false;
     learningPlanLocked = true;
     scheduleSaved = false;
+    if (deleteAppliedBtn) {
+      deleteAppliedBtn.disabled = true;
+    }
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
@@ -349,15 +382,39 @@ generateScheduleBtn.addEventListener("click", async () => {
 });
 
 approveBtn.addEventListener("click", async () => {
+  approveBtn.disabled = true;
+  generatePlanBtn.disabled = true;
+  generateScheduleBtn.disabled = true;
+  setInputsDisabled({
+    goal: true,
+    preferences: true
+  });
+  document.body.classList.add("loading-cursor");
   if (!learningPlanSaved) {
     const ok = await saveLearningPlan();
-    if (!ok) return;
+    if (!ok) {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      approveBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
+      return;
+    }
   }
   if (!scheduleSaved) {
     const ok = await saveSchedule();
-    if (!ok) return;
+    if (!ok) {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      approveBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
+      return;
+    }
   }
   if (!savedScheduleId) {
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    approveBtn.disabled = false;
+    document.body.classList.remove("loading-cursor");
     alert("Schedule must be saved before applying.");
     return;
   }
@@ -387,7 +444,10 @@ approveBtn.addEventListener("click", async () => {
       scheduleLocked = false;
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
       approveBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
       alert(`Failed to add events. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
@@ -397,7 +457,10 @@ approveBtn.addEventListener("click", async () => {
       scheduleLocked = true;
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
       approveBtn.disabled = true;
+      document.body.classList.remove("loading-cursor");
       alert(data.error || "This schedule has already been applied.");
       if (typeof loadHistory === "function") {
         loadHistory();
@@ -410,7 +473,10 @@ approveBtn.addEventListener("click", async () => {
       setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
       approveBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
       alert("Failed to add events: " + (data.error || `Server returned ${res.status}`));
       return;
     }
@@ -420,16 +486,18 @@ approveBtn.addEventListener("click", async () => {
       setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
       approveBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
       alert("Failed to add events: " + data.error);
       return;
     }
     alert(`Created ${data.events_created?.length || 0} events`);
-    approveBtn.disabled = true;
-    scheduleLocked = true;
-    learningPlanLocked = true;
-    renderTopLearningPlan(learningPlan);
-    renderTopSchedule(schedule);
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    document.body.classList.remove("loading-cursor");
+    setAppliedScheduleUI(true);
     if (typeof loadEvents === "function") {
       loadEvents();
     }
@@ -440,7 +508,10 @@ approveBtn.addEventListener("click", async () => {
     setInputsDisabled({ goal: false, preferences: false });
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
     approveBtn.disabled = false;
+    document.body.classList.remove("loading-cursor");
     alert("Network error while applying schedule");
     console.error(err);
   }
@@ -672,6 +743,12 @@ async function generateScheduleFromSavedPlan(planId) {
   schedule = null;
   learningPlanSaved = true;
   scheduleSaved = false;
+  if (deleteAppliedBtn) {
+    deleteAppliedBtn.disabled = true;
+  }
+  if (deleteAppliedBtn) {
+    deleteAppliedBtn.disabled = true;
+  }
   generatedGoalText = selectedPlan.goal || "";
   generatedPlanTotalHours = selectedPlan.total_hours || 10;
   learningPlanLocked = true;
@@ -760,6 +837,9 @@ async function applySavedSchedule(scheduleId) {
   savedLearningPlanId = selectedSchedule.learning_plan_id || null;
   learningPlanSaved = true;
   scheduleSaved = true;
+  if (selectedSchedule.status === "applied") {
+    setAppliedScheduleUI(true);
+  }
   learningPlanLocked = true;
   scheduleLocked = true;
   renderTopLearningPlan(learningPlan);
@@ -800,9 +880,7 @@ async function applySavedSchedule(scheduleId) {
       return;
     }
     alert(`Created ${data.events_created?.length || 0} events`);
-    approveBtn.disabled = true;
-    scheduleLocked = true;
-    renderTopSchedule(schedule);
+    setAppliedScheduleUI(true);
     if (typeof loadEvents === "function") {
       loadEvents();
     }
@@ -1328,6 +1406,10 @@ if (topSaveScheduleBtn) {
   topSaveScheduleBtn.addEventListener("click", saveSchedule);
 }
 
+if (deleteAppliedBtn) {
+  deleteAppliedBtn.addEventListener("click", deleteAppliedSchedule);
+}
+
 async function saveLearningPlan() {
   if (!Array.isArray(learningPlan) || learningPlan.length === 0) {
     alert("No learning plan to save.");
@@ -1402,9 +1484,98 @@ async function saveSchedule() {
   }
 }
 
+async function deleteAppliedSchedule() {
+  if (!savedScheduleId) {
+    alert("No applied schedule is selected.");
+    return;
+  }
+  const confirmed = window.confirm(
+    "Delete the calendar events created by this applied schedule? The saved schedule will remain."
+  );
+  if (!confirmed) return;
+  deleteAppliedBtn.disabled = true;
+  approveBtn.disabled = true;
+  generatePlanBtn.disabled = true;
+  generateScheduleBtn.disabled = true;
+  setInputsDisabled({
+    goal: true,
+    preferences: true
+  });
+  document.body.classList.add("loading-cursor");
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/ai/unapply-schedule`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_schedule_id: savedScheduleId
+      })
+    });
+    const contentType = res.headers.get("content-type") || "";
+    const rawText = await res.text();
+    let data = {};
+    if (contentType.includes("application/json")) {
+      data = JSON.parse(rawText);
+    }
+    if (!res.ok) {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      approveBtn.disabled = false;
+      deleteAppliedBtn.disabled = false;
+      document.body.classList.remove("loading-cursor");
+      alert(data.error || `Failed to delete applied schedule events (${res.status})`);
+      return;
+    }
+    document.body.classList.remove("loading-cursor");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    scheduleLocked = false;
+    learningPlanLocked = true;
+    if (approveBtn) {
+      approveBtn.disabled = false;
+    }
+    if (deleteAppliedBtn) {
+      deleteAppliedBtn.disabled = true;
+    }
+    setInputsDisabled({
+      goal: true,
+      preferences: false
+    });
+    renderTopLearningPlan(learningPlan);
+    renderTopSchedule(schedule);
+    if (typeof loadEvents === "function") {
+      loadEvents();
+    }
+    await loadHistory();
+    alert(`Deleted ${data.deleted_google_events || 0} calendar event(s).`);
+  } catch (err) {
+    document.body.classList.remove("loading-cursor");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    approveBtn.disabled = false;
+    deleteAppliedBtn.disabled = false;
+    setInputsDisabled({
+      goal: true,
+      preferences: false
+    });
+    console.error(err);
+    alert("Failed to delete applied schedule events.");
+  }
+}
+
+document.addEventListener("mousemove", (e) => {
+  if (!document.body.classList.contains("loading-cursor")) return;
+  document.body.style.setProperty("--x", `${e.clientX + 14}px`);
+  document.body.style.setProperty("--y", `${e.clientY + 14}px`);
+});
+
 syncPreferenceInputs();
 normalizeDaysPerWeekInput();
 syncTopSaveButtons();
+
+if (deleteAppliedBtn) {
+  deleteAppliedBtn.disabled = true;
+}
 
 window.toggleDetails = toggleDetails;
 window.deleteLearningPlan = deleteLearningPlan;
@@ -1424,3 +1595,4 @@ window.deleteScheduleSession = deleteScheduleSession;
 window.showAddScheduleForm = showAddScheduleForm;
 window.hideAddScheduleForm = hideAddScheduleForm;
 window.addExtraScheduleTopic = addExtraScheduleTopic;
+window.deleteAppliedSchedule = deleteAppliedSchedule;

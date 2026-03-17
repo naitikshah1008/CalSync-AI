@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -33,6 +34,10 @@ type ApplyScheduleRequest struct {
 	SavedScheduleID *int               `json:"saved_schedule_id"`
 	Schedule        []ScheduledSession `json:"schedule"`
 	Apply           bool               `json:"apply"`
+}
+
+type UnapplyScheduleRequest struct {
+	SavedScheduleID *int `json:"saved_schedule_id"`
 }
 
 type ScheduledSession struct {
@@ -280,7 +285,6 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
 	if !req.Apply {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"mode":         "dry-run",
@@ -298,6 +302,88 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		"mode":           "applied",
 		"events_created": previewEvents,
 	})
+}
+
+func UnapplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req UnapplyScheduleRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.SavedScheduleID == nil {
+		http.Error(w, "missing saved_schedule_id", http.StatusBadRequest)
+		return
+	}
+	rec, err := getScheduleStatus(r.Context(), *req.SavedScheduleID, user.ID)
+	if err != nil {
+		http.Error(w, "failed to load saved schedule", http.StatusNotFound)
+		return
+	}
+	if rec.Status != "applied" {
+		writeJSON(w, http.StatusConflict, map[string]any{
+			"error":             "This schedule is not currently applied.",
+			"saved_schedule_id": rec.ID,
+			"status":            rec.Status,
+		})
+		return
+	}
+	srv, err := getCalendarServiceForUser(r.Context(), user.ID)
+	if err != nil {
+		http.Error(w, "failed to init calendar service: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	linkedEvents, err := getScheduleEventsByScheduleID(r.Context(), *req.SavedScheduleID, user.ID)
+	if err != nil {
+		http.Error(w, "failed to load linked schedule events", http.StatusInternalServerError)
+		return
+	}
+	deletedGoogleEvents := 0
+	for _, ev := range linkedEvents {
+		err := srv.Events.Delete("primary", ev.GoogleEventID).Do()
+		if err == nil {
+			deletedGoogleEvents++
+		}
+	}
+	if _, err := DB.ExecContext(r.Context(), `
+		DELETE FROM schedule_events
+		WHERE schedule_id = $1 AND user_id = $2
+	`, *req.SavedScheduleID, user.ID); err != nil {
+		http.Error(w, "failed to delete schedule event metadata", http.StatusInternalServerError)
+		return
+	}
+	if err := markScheduleDraft(r.Context(), *req.SavedScheduleID); err != nil {
+		http.Error(w, "failed to mark schedule as draft", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":                "unapplied",
+		"saved_schedule_id":     *req.SavedScheduleID,
+		"deleted_google_events": deletedGoogleEvents,
+	})
+}
+
+func markScheduleDraft(ctx context.Context, scheduleID int) error {
+	_, err := DB.ExecContext(ctx, `
+		UPDATE schedules
+		SET status = 'draft',
+		    applied_at = NULL
+		WHERE id = $1
+	`, scheduleID)
+	return err
 }
 
 func copyJSONResponse(w http.ResponseWriter, resp *http.Response) {

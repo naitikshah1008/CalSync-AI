@@ -139,7 +139,7 @@ body {
 .btn {
   border: 0;
   border-radius: 14px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -359,8 +359,9 @@ body {
 .action-row {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   margin-top: 12px;
+  align-items: center;
 }
 
 .small-btn {
@@ -588,4 +589,32 @@ input:disabled,
 select:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.loading-cursor {
+  cursor: none;
+}
+
+.loading-cursor::after {
+  content: "";
+  position: fixed;
+  left: var(--x);
+  top: var(--y);
+  width: 14px;
+  height: 14px;
+  border: 2px solid #63b3ff;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: spin-loader 0.8s linear infinite;
+}
+
+@keyframes spin-loader {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
 }
