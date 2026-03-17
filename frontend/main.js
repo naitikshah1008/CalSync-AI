@@ -179,4 +179,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   updateQuickStats();
   loadEvents();
+  if (typeof loadHistory === "function") {
+    loadHistory();
+  }
 });
