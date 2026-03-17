@@ -583,3 +583,9 @@ body {
   color: rgba(255, 107, 107, 0.28);
   transform: none;
 }
+
+input:disabled,
+select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

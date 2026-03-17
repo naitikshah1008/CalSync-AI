@@ -39,6 +39,9 @@ generatePlanBtn.addEventListener("click", async () => {
     alert("Please enter a learning goal");
     return;
   }
+  generatePlanBtn.disabled = true;
+  generateScheduleBtn.disabled = true;
+  setInputsDisabled({ goal: true });
   // Reset old generated schedule immediately when starting a new plan
   learningPlan = null;
   schedule = null;
@@ -70,19 +73,29 @@ generatePlanBtn.addEventListener("click", async () => {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = !learningPlan;
+      setInputsDisabled({ goal: false });
       renderTopPlanMessage(`Error generating learning plan. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
       return;
     }
     if (!res.ok) {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = !learningPlan;
+      setInputsDisabled({ goal: false });
       renderTopPlanMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = !learningPlan;
+      setInputsDisabled({ goal: false });
       renderTopPlanMessage("Error: " + data.error);
       return;
     }
     learningPlan = data.learning_plan;
+    setInputsDisabled({ goal: false });
     savedLearningPlanId = null;
     savedScheduleId = null;
     learningPlanSaved = false;
@@ -95,13 +108,24 @@ generatePlanBtn.addEventListener("click", async () => {
     savedScheduleId = null;
     renderTopScheduleMessage("Generate a schedule for this learning plan.");
     approveBtn.disabled = true;
+    generatePlanBtn.disabled = false;
     generateScheduleBtn.disabled = false;
   } catch (err) {
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = !learningPlan;
+    setInputsDisabled({ goal: false });
     renderTopPlanMessage("Error generating learning plan.");
-    renderTopScheduleMessage("Generate a schedule for this learning plan.");
+    renderTopScheduleMessage("Generate a new schedule for this learning plan.");
     console.error(err);
   }
 });
+
+function setInputsDisabled({ goal = false, preferences = false } = {}) {
+  if (goalInput) goalInput.disabled = goal;
+  if (dayTypeSelect) dayTypeSelect.disabled = preferences;
+  if (daysPerWeekInput) daysPerWeekInput.disabled = preferences;
+  if (hoursPerDayInput) hoursPerDayInput.disabled = preferences;
+}
 
 function syncDaysPerWeekInput() {
   const dayType = dayTypeSelect?.value || "both";
@@ -217,20 +241,31 @@ function getSchedulePreferences() {
 
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
+  generatePlanBtn.disabled = true;
+  generateScheduleBtn.disabled = true;
+  setInputsDisabled({
+    goal: true,
+    preferences: true
+  });
   learningPlanLocked = true;
   renderTopLearningPlan(learningPlan);
   renderTopScheduleMessage("Generating schedule...");
   approveBtn.disabled = true;
   if (!dayTypeSelect?.value) {
     alert("Please select Study days first.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   if (!daysPerWeekInput?.value) {
     alert("Please select Days per week.");
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   if (!hoursPerDayInput?.value) {
     alert("Please enter Hours per day.");
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   try {
@@ -252,30 +287,48 @@ generateScheduleBtn.addEventListener("click", async () => {
     } else {
       console.error("Non-JSON response:", rawText);
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
+      setInputsDisabled({ goal: false, preferences: false });
       return;
     }
     console.log("Schedule response:", data);
     if (!res.ok) {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     if (!data.schedule || data.schedule.length === 0) {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("No schedule could be generated.");
       return;
     }
     schedule = data.schedule;
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({
+      goal: true,
+      preferences: false
+    });
     savedScheduleId = null;
     scheduleDrafts = {};
     scheduleLocked = false;
@@ -284,11 +337,12 @@ generateScheduleBtn.addEventListener("click", async () => {
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
-    renderTopSchedule(schedule);
-    approveBtn.disabled = false;
   } catch (err) {
     console.error(err);
     learningPlanLocked = false;
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({ goal: false, preferences: false });
     renderTopLearningPlan(learningPlan);
     renderTopScheduleMessage("Error generating schedule.");
   }
@@ -353,6 +407,7 @@ approveBtn.addEventListener("click", async () => {
     if (!res.ok) {
       learningPlanLocked = false;
       scheduleLocked = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
       approveBtn.disabled = false;
@@ -362,6 +417,7 @@ approveBtn.addEventListener("click", async () => {
     if (data.error) {
       learningPlanLocked = false;
       scheduleLocked = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
       approveBtn.disabled = false;
@@ -381,6 +437,7 @@ approveBtn.addEventListener("click", async () => {
   } catch (err) {
     learningPlanLocked = false;
     scheduleLocked = false;
+    setInputsDisabled({ goal: false, preferences: false });
     renderTopLearningPlan(learningPlan);
     renderTopSchedule(schedule);
     approveBtn.disabled = false;
@@ -590,14 +647,23 @@ async function generateScheduleFromSavedPlan(planId) {
   }
   if (!dayTypeSelect?.value) {
     alert("Please select Study days first.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   if (!daysPerWeekInput?.value) {
     alert("Please select Days per week.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   if (!hoursPerDayInput?.value) {
     alert("Please enter Hours per day.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   learningPlan = extractedPlan;
@@ -610,6 +676,10 @@ async function generateScheduleFromSavedPlan(planId) {
   generatedPlanTotalHours = selectedPlan.total_hours || 10;
   learningPlanLocked = true;
   goalInput.value = selectedPlan.goal || "";
+  setInputsDisabled({
+    goal: true,
+    preferences: true
+  });
   renderTopLearningPlan(learningPlan);
   renderTopScheduleMessage("Generating schedule...");
   approveBtn.disabled = true;
@@ -631,6 +701,7 @@ async function generateScheduleFromSavedPlan(planId) {
       data = JSON.parse(rawText);
     } else {
       learningPlanLocked = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
@@ -638,17 +709,23 @@ async function generateScheduleFromSavedPlan(planId) {
     }
     if (!res.ok) {
       learningPlanLocked = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
       return;
     }
     if (data.error) {
       learningPlanLocked = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + data.error);
       return;
     }
     schedule = data.schedule;
+    setInputsDisabled({
+      goal: true,          // stays locked
+      preferences: false   // unlock these
+    });
     savedScheduleId = null;
     scheduleDrafts = {};
     scheduleLocked = false;
@@ -666,6 +743,7 @@ async function generateScheduleFromSavedPlan(planId) {
   } catch (err) {
     console.error(err);
     learningPlanLocked = false;
+    setInputsDisabled({ goal: false, preferences: false });
     renderTopLearningPlan(learningPlan);
     renderTopScheduleMessage("Error generating schedule.");
   }
@@ -682,11 +760,9 @@ async function applySavedSchedule(scheduleId) {
   savedLearningPlanId = selectedSchedule.learning_plan_id || null;
   learningPlanSaved = true;
   scheduleSaved = true;
-  renderTopSchedule(schedule);
   learningPlanLocked = true;
   scheduleLocked = true;
   renderTopLearningPlan(learningPlan);
-  renderTopSchedule(schedule);
   approveBtn.disabled = true;
   try {
     const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
