@@ -837,7 +837,7 @@ function renderTopLearningPlan(plan) {
   planOutput.innerHTML = `
     ${cardsHtml}
     <div class="action-row" style="margin-top: 14px;">
-      <button class="btn btn-secondary" onclick="saveLearningPlan()" ${learningPlanSaved ? "disabled" : ""}>
+      <button class="btn btn-accent" onclick="saveLearningPlan()" ${learningPlanSaved ? "disabled" : ""}>
         Save Learning Plan
       </button>
     </div>
@@ -956,7 +956,7 @@ function renderTopSchedule(scheduleItems) {
       `;
     }).join("")}
     <div class="action-row" style="margin-top: 14px;">
-      <button class="btn btn-secondary" onclick="saveSchedule()" ${scheduleSaved || scheduleLocked ? "disabled" : ""}>
+      <button class="btn btn-accent" onclick="saveSchedule()" ${scheduleSaved || scheduleLocked ? "disabled" : ""}>
         Save Schedule
       </button>
     </div>
@@ -1324,6 +1324,7 @@ async function saveSchedule() {
 
 syncPreferenceInputs();
 normalizeDaysPerWeekInput();
+syncTopSaveButtons();
 
 window.toggleDetails = toggleDetails;
 window.deleteLearningPlan = deleteLearningPlan;
