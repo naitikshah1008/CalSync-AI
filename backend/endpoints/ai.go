@@ -588,6 +588,19 @@ func SaveScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	learningPlanID := req.SavedLearningPlanID
+	// If frontend sent a learning plan id, first verify it still exists
+	// for this user. If it was deleted, treat it as missing and recreate it.
+	if learningPlanID != nil {
+		var existingID int
+		err := DB.QueryRowContext(r.Context(), `
+			SELECT id
+			FROM learning_plans
+			WHERE id = $1 AND user_id = $2
+		`, *learningPlanID, user.ID).Scan(&existingID)
+		if err != nil {
+			learningPlanID = nil
+		}
+	}
 	if learningPlanID == nil {
 		payload := map[string]any{
 			"learning_plan": req.LearningPlan,

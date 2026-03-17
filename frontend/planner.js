@@ -440,6 +440,10 @@ async function deleteLearningPlan(id) {
       alert(data.error || `Failed to delete learning plan (${res.status})`);
       return;
     }
+    if (Number(savedLearningPlanId) === Number(id)) {
+      savedLearningPlanId = null;
+      learningPlanSaved = false;
+    }
     loadHistory();
   } catch (err) {
     console.error(err);
