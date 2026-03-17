@@ -398,16 +398,6 @@ body {
   pointer-events: auto;
 }
 
-.details {
-  margin-top: 12px;
-  padding: 14px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  display: none;
-  white-space: pre-wrap;
-}
-
 .details.open {
   display: block;
 }
@@ -617,4 +607,38 @@ select:disabled {
   to {
     transform: translate(-50%, -50%) rotate(360deg);
   }
+}
+
+.history-plan-topics,
+.history-schedule-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.history-topic-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 16px;
+}
+
+.details {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  display: none;
+  white-space: normal;
+}
+
+.card h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+
+.card .meta {
+  margin-bottom: 12px;
+  line-height: 1.5;
 }

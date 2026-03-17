@@ -133,3 +133,16 @@ func getRecentSchedules(ctx context.Context, userID int) ([]map[string]any, erro
 	}
 	return out, rows.Err()
 }
+
+func updateLearningPlan(ctx context.Context, userID int, planID int, plan any) error {
+	planJSON, err := json.Marshal(plan)
+	if err != nil {
+		return err
+	}
+	_, err = DB.ExecContext(ctx, `
+		UPDATE learning_plans
+		SET plan_json = $1
+		WHERE id = $2 AND user_id = $3
+	`, planJSON, planID, userID)
+	return err
+}

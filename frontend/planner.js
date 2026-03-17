@@ -7,6 +7,9 @@ let savedScheduleId = null;
 let loadedHistoryPlans = [];
 let loadedHistorySchedules = [];
 let scheduleDrafts = {};
+let savedScheduleDrafts = {};
+let savedScheduleDirtyFlags = {};
+let historyGeneratingPlanId = null;
 let scheduleLocked = false;
 let learningPlanLocked = false;
 let learningPlanSaved = false;
@@ -266,6 +269,141 @@ function getSchedulePreferences() {
   };
 }
 
+function getSavedScheduleDraft(scheduleId) {
+  if (!savedScheduleDrafts[scheduleId]) {
+    const original = findScheduleById(scheduleId, loadedHistorySchedules);
+    if (!original) return null;
+    savedScheduleDrafts[scheduleId] = JSON.parse(
+      JSON.stringify(original.schedule?.schedule || [])
+    );
+  }
+  return savedScheduleDrafts[scheduleId];
+}
+
+function updateSavedScheduleField(scheduleId, index, field, value) {
+  const original = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (original?.status === "applied") return;
+  const draft = getSavedScheduleDraft(scheduleId);
+  if (!draft || !draft[index]) return;
+  draft[index][field] = value;
+  savedScheduleDirtyFlags[scheduleId] = true;
+  renderSchedules(loadedHistorySchedules);
+}
+
+function updateSavedScheduleSubtopics(scheduleId, index, value) {
+  const original = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (original?.status === "applied") return;
+  const draft = getSavedScheduleDraft(scheduleId);
+  if (!draft || !draft[index]) return;
+  draft[index].subtopics = value
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
+  savedScheduleDirtyFlags[scheduleId] = true;
+  renderSchedules(loadedHistorySchedules);
+}
+
+function updateSavedScheduleDateTime(scheduleId, index, part, value) {
+  const original = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (original?.status === "applied") return;
+  const draft = getSavedScheduleDraft(scheduleId);
+  if (!draft || !draft[index]) return;
+  const currentStart = new Date(draft[index].start);
+  const currentEnd = new Date(draft[index].end);
+  if (isNaN(currentStart) || isNaN(currentEnd)) return;
+  let startDate = new Date(currentStart);
+  let endDate = new Date(currentEnd);
+  if (part === "date") {
+    const [y, m, d] = value.split("-").map(Number);
+    startDate.setFullYear(y, m - 1, d);
+    endDate.setFullYear(y, m - 1, d);
+  }
+  if (part === "start") {
+    const [h, min] = value.split(":").map(Number);
+    startDate.setHours(h, min, 0, 0);
+  }
+  if (part === "end") {
+    const [h, min] = value.split(":").map(Number);
+    endDate.setHours(h, min, 0, 0);
+  }
+  if (endDate <= startDate) {
+    alert("End time must be after start time.");
+    return;
+  }
+  draft[index].start = startDate.toISOString();
+  draft[index].end = endDate.toISOString();
+  savedScheduleDirtyFlags[scheduleId] = true;
+  renderSchedules(loadedHistorySchedules);
+}
+
+function deleteSavedScheduleSession(scheduleId, index) {
+  const original = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (original?.status === "applied") return;
+  const draft = getSavedScheduleDraft(scheduleId);
+  if (!draft || !draft[index]) return;
+  draft.splice(index, 1);
+  savedScheduleDirtyFlags[scheduleId] = true;
+  renderSchedules(loadedHistorySchedules);
+}
+
+async function applyEditedSavedSchedule(scheduleId) {
+  const draft = getSavedScheduleDraft(scheduleId);
+  const original = findScheduleById(scheduleId, loadedHistorySchedules);
+  if (original?.status === "applied") {
+    alert("Applied schedules cannot be edited or applied again.");
+    return;
+  }
+  if (!draft || !original) {
+    alert("Unable to find saved schedule.");
+    return;
+  }
+  const button = document.getElementById(`apply-saved-schedule-btn-${scheduleId}`);
+  if (button) {
+    button.disabled = true;
+  }
+  try {
+    if (typeof loadEvents === "function") {
+      await loadEvents();
+    }
+    for (let i = 0; i < draft.length; i++) {
+      const session = draft[i];
+      const conflict = hasCalendarConflictOnly(session.start, session.end);
+      if (conflict) {
+        if (button) button.disabled = false;
+        alert(`Cannot apply schedule. Session "${session.topic}" clashes with an existing calendar event.`);
+        return;
+      }
+    }
+    const res = await fetch(`${API_BASE}/api/v1/ai/apply-schedule`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        saved_schedule_id: scheduleId,
+        schedule: draft,
+        apply: true
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (button) button.disabled = false;
+      alert(data.error || "Failed to apply saved schedule.");
+      return;
+    }
+    delete savedScheduleDrafts[scheduleId];
+    savedScheduleDirtyFlags[scheduleId] = false;
+    await loadHistory();
+    if (typeof loadEvents === "function") {
+      await loadEvents();
+    }
+    alert(`Applied ${data.events_created?.length || 0} session(s) to calendar.`);
+  } catch (err) {
+    console.error(err);
+    if (button) button.disabled = false;
+    alert("Failed to apply saved schedule.");
+  }
+}
+
 generateScheduleBtn.addEventListener("click", async () => {
   if (!learningPlan) return;
   if (deleteAppliedBtn) {
@@ -290,11 +428,15 @@ generateScheduleBtn.addEventListener("click", async () => {
   }
   if (!daysPerWeekInput?.value) {
     alert("Please select Days per week.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     return;
   }
   if (!hoursPerDayInput?.value) {
     alert("Please enter Hours per day.");
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     return;
   }
@@ -315,13 +457,13 @@ generateScheduleBtn.addEventListener("click", async () => {
     if (contentType.includes("application/json")) {
       data = JSON.parse(rawText);
     } else {
-      console.error("Non-JSON response:", rawText);
       learningPlanLocked = false;
       generatePlanBtn.disabled = false;
       generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
-      setInputsDisabled({ goal: false, preferences: false });
+      console.error("Non-JSON response:", rawText);
       return;
     }
     console.log("Schedule response:", data);
@@ -617,10 +759,12 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
-function toggleDetails(id) {
+function toggleDetails(id, buttonEl, showLabel = "Show Details", hideLabel = "Hide Details") {
   const el = document.getElementById(id);
-  if (el) {
-    el.classList.toggle("open");
+  if (!el) return;
+  const isOpen = el.classList.toggle("open");
+  if (buttonEl) {
+    buttonEl.textContent = isOpen ? hideLabel : showLabel;
   }
 }
 
@@ -637,24 +781,45 @@ function renderLearningPlans(plans) {
       <div class="card">
         <h4>${plan.goal || "Untitled Goal"}</h4>
         <div class="meta">
+          ${linkedSchedule ? `Schedule ID: ${linkedSchedule.id}<br>` : "Schedule ID: —<br>"}
           Created: ${formatDateTime(plan.created_at)}<br>
           Total Hours: ${plan.total_hours ?? "-"}<br>
           Topics: ${topics.length}
         </div>
         <div class="action-row">
-          <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Details</button>
+          <button
+            class="small-btn"
+            onclick="toggleDetails('${detailsId}', this, 'Show Details', 'Hide Details')"
+          >
+            Show Details
+          </button>
           <button class="small-btn delete-btn" onclick="deleteLearningPlan(${plan.id})">Delete</button>
         </div>
         <div class="details" id="${detailsId}">
-          ${topics.map(topic => `
-            • ${topic.topic} (${topic.difficulty_rating || "unknown"}, ${topic.estimated_hours || 0}h)
-              - ${topic.subtopics?.join(", ") || ""}
-          `).join("\n")}
+          <div class="history-plan-topics">
+            ${topics.map((topic) => `
+              <div class="history-topic-card">
+                <div class="plan-topic-head">
+                  <div>
+                    <h4 class="plan-topic-title">${topic.topic || "Untitled Topic"}</h4>
+                    <div class="muted-text">${topic.description || "No description provided."}</div>
+                  </div>
+                  <div class="action-row" style="justify-content: flex-end; align-items: center;">
+                    <span class="chip">${topic.difficulty_rating || "unknown"}</span>
+                    <span class="chip">${topic.estimated_hours || 0}h</span>
+                  </div>
+                </div>
+                <div class="topic-subtopics">
+                  ${(topic.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
+                </div>
+              </div>
+            `).join("")}
+          </div>
           <div class="action-row" style="margin-top: 12px;">
             ${
               linkedSchedule
                 ? `<button class="small-btn" onclick="jumpToSavedSchedule(${linkedSchedule.id})">Open Saved Schedule</button>`
-                : `<button class="small-btn" onclick="generateScheduleFromSavedPlan(${plan.id})">Generate Schedule</button>`
+                : `<button class="small-btn" onclick="generateScheduleFromSavedPlan(${plan.id}, this)" ${historyGeneratingPlanId === plan.id ? "disabled" : ""}>Generate Schedule</button>`
             }
           </div>
         </div>
@@ -669,35 +834,119 @@ function renderSchedules(schedules) {
     return;
   }
   historySchedulesList.innerHTML = schedules.slice(0, 5).map((scheduleItem) => {
-    const sessions = scheduleItem.schedule?.schedule || [];
+    const originalSessions = scheduleItem.schedule?.schedule || [];
+    const sessions = savedScheduleDrafts[scheduleItem.id] || originalSessions;
     const detailsId = `saved-schedule-details-${scheduleItem.id}`;
     const cardId = `saved-schedule-card-${scheduleItem.id}`;
     const statusClass = scheduleItem.status === "applied" ? "applied" : "draft";
-    return `
+    const linkedPlan = loadedHistoryPlans.find(
+      p => Number(p.id) === Number(scheduleItem.learning_plan_id)
+    );
+    const scheduleTitle = linkedPlan?.goal || `Schedule #${scheduleItem.id}`;
+    const isApplied = scheduleItem.status === "applied";
+    const canApply = !isApplied;
+        return `
       <div class="card" id="${cardId}">
-        <h4>Schedule #${scheduleItem.id}</h4>
+        <h4>${escapeHtml(scheduleTitle)}</h4>
         <div class="meta">
           <span class="chip ${statusClass}">${scheduleItem.status || "unknown"}</span>
+          Schedule ID: ${scheduleItem.id}<br>
           Created: ${formatDateTime(scheduleItem.created_at)}<br>
           ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : "Not applied yet<br>"}
           Sessions: ${sessions.length}
         </div>
         <div class="action-row">
-          <button class="small-btn" onclick="toggleDetails('${detailsId}')">Show Sessions</button>
+          <button class="small-btn toggle-sessions-btn" onclick="toggleDetails('${detailsId}', this, 'Show Sessions', 'Hide Sessions')">
+            Show Sessions
+          </button>
           <button class="small-btn delete-btn" onclick="deleteSchedule(${scheduleItem.id})">Delete</button>
         </div>
         <div class="details" id="${detailsId}">
-          ${sessions.map(session => `
-            • ${session.topic} - Session ${session.session_number}
-              ${formatDateTime(session.start)} -> ${formatDateTime(session.end)}
-              Subtopics: ${session.subtopics?.join(", ") || ""}
-          `).join("\n\n")}
-          <div class="action-row" style="margin-top: 12px;">
-            ${
-              scheduleItem.status === "applied"
-                ? `<button class="small-btn" disabled>Already Applied</button>`
-                : `<button class="small-btn" onclick="applySavedSchedule(${scheduleItem.id})">Apply Schedule</button>`
-            }
+          <div class="history-schedule-sessions">
+            ${sessions.map((session, sessionIndex) => {
+              const start = new Date(session.start);
+              const end = new Date(session.end);
+              const dateValue = isNaN(start) ? "" : start.toISOString().slice(0, 10);
+              const startValue = isNaN(start) ? "" : start.toTimeString().slice(0, 5);
+              const endValue = isNaN(end) ? "" : end.toTimeString().slice(0, 5);
+              const weekday = isNaN(start)
+                ? "—"
+                : start.toLocaleDateString(undefined, { weekday: "long" });
+              return `
+                <div class="schedule-session-card">
+                  <div class="schedule-session-head">
+                    <div style="flex: 1;">
+                      <input
+                        class="edit-input session-title-input"
+                        type="text"
+                        value="${escapeHtml(session.topic || "")}"
+                        onchange="updateSavedScheduleField(${scheduleItem.id}, ${sessionIndex}, 'topic', this.value)"
+                        ${isApplied ? "disabled" : ""}
+                      />
+                      <div class="muted-text" style="margin-top: 8px;">
+                        <strong>${weekday}</strong>
+                      </div>
+                    </div>
+                    <div class="action-row">
+                      <button
+                        class="icon-btn delete-btn"
+                        onclick="deleteSavedScheduleSession(${scheduleItem.id}, ${sessionIndex})"
+                        ${isApplied ? "disabled" : ""}
+                        title="Delete session"
+                        aria-label="Delete session"
+                      >
+                        <span class="trash-icon">🗑</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="schedule-edit-grid">
+                    <div>
+                      <label class="field-label">Date</label>
+                      <input
+                        class="edit-input"
+                        type="date"
+                        value="${dateValue}"
+                        onchange="updateSavedScheduleDateTime(${scheduleItem.id}, ${sessionIndex}, 'date', this.value)"
+                        ${isApplied ? "disabled" : ""}
+                      />
+                    </div>
+                    <div>
+                      <label class="field-label">Start Time</label>
+                      <input
+                        class="edit-input"
+                        type="time"
+                        value="${startValue}"
+                        onchange="updateSavedScheduleDateTime(${scheduleItem.id}, ${sessionIndex}, 'start', this.value)"
+                        ${isApplied ? "disabled" : ""}
+                      />
+                    </div>
+                    <div>
+                      <label class="field-label">End Time</label>
+                      <input
+                        class="edit-input"
+                        type="time"
+                        value="${endValue}"
+                        onchange="updateSavedScheduleDateTime(${scheduleItem.id}, ${sessionIndex}, 'end', this.value)"
+                        ${isApplied ? "disabled" : ""}
+                      />
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px;">
+                    <label class="field-label">Subtopics (comma separated)</label>
+                    <input
+                      class="edit-input"
+                      type="text"
+                      value="${escapeHtml((session.subtopics || []).join(", "))}"
+                      onchange="updateSavedScheduleSubtopics(${scheduleItem.id}, ${sessionIndex}, this.value)"
+                      ${isApplied ? "disabled" : ""}
+                    />
+                  </div>
+                </div>
+              `;
+            }).join("")}
+          </div>
+          <div class="action-row" style="margin-top: 14px;">
+            <button class="btn btn-accent" id="apply-saved-schedule-btn-${scheduleItem.id}" onclick="applyEditedSavedSchedule(${scheduleItem.id})" ${canApply ? "" : "disabled"}>Apply to Calendar</button>
           </div>
         </div>
       </div>
@@ -705,8 +954,10 @@ function renderSchedules(schedules) {
   }).join("");
 }
 
-async function generateScheduleFromSavedPlan(planId) {
+async function generateScheduleFromSavedPlan(planId, buttonEl) {
   const selectedPlan = loadedHistoryPlans.find(p => Number(p.id) === Number(planId));
+  historyGeneratingPlanId = planId;
+  renderLearningPlans(loadedHistoryPlans);
   if (!selectedPlan) {
     alert("Saved learning plan not found.");
     return;
@@ -720,6 +971,9 @@ async function generateScheduleFromSavedPlan(planId) {
     alert("Please select Study days first.");
     generatePlanBtn.disabled = false;
     generateScheduleBtn.disabled = false;
+    historyGeneratingPlanId = null;
+    renderLearningPlans(loadedHistoryPlans);
+    if (buttonEl) buttonEl.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     return;
   }
@@ -727,6 +981,9 @@ async function generateScheduleFromSavedPlan(planId) {
     alert("Please select Days per week.");
     generatePlanBtn.disabled = false;
     generateScheduleBtn.disabled = false;
+    historyGeneratingPlanId = null;
+    renderLearningPlans(loadedHistoryPlans);
+    if (buttonEl) buttonEl.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     return;
   }
@@ -734,6 +991,9 @@ async function generateScheduleFromSavedPlan(planId) {
     alert("Please enter Hours per day.");
     generatePlanBtn.disabled = false;
     generateScheduleBtn.disabled = false;
+    historyGeneratingPlanId = null;
+    renderLearningPlans(loadedHistoryPlans);
+    if (buttonEl) buttonEl.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     return;
   }
@@ -743,6 +1003,13 @@ async function generateScheduleFromSavedPlan(planId) {
   schedule = null;
   learningPlanSaved = true;
   scheduleSaved = false;
+  historyGeneratingPlanId = planId;
+  generatePlanBtn.disabled = true;
+  generateScheduleBtn.disabled = true;
+  if (buttonEl) {
+    buttonEl.disabled = true;
+  }
+  renderLearningPlans(loadedHistoryPlans);
   if (deleteAppliedBtn) {
     deleteAppliedBtn.disabled = true;
   }
@@ -778,27 +1045,47 @@ async function generateScheduleFromSavedPlan(planId) {
       data = JSON.parse(rawText);
     } else {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      if (buttonEl) buttonEl.disabled = false;
       setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage(`Error generating schedule. Server returned ${res.status}.`);
       console.error("Non-JSON response:", rawText);
+      historyGeneratingPlanId = null;
+      renderLearningPlans(loadedHistoryPlans);
       return;
     }
     if (!res.ok) {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      if (buttonEl) buttonEl.disabled = false;
       setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + (data.error || `Server returned ${res.status}`));
+      historyGeneratingPlanId = null;
+      renderLearningPlans(loadedHistoryPlans);
       return;
     }
     if (data.error) {
       learningPlanLocked = false;
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      if (buttonEl) buttonEl.disabled = false;
       setInputsDisabled({ goal: false, preferences: false });
       renderTopLearningPlan(learningPlan);
       renderTopScheduleMessage("Error: " + data.error);
+      historyGeneratingPlanId = null;
+      renderLearningPlans(loadedHistoryPlans);
       return;
     }
     schedule = data.schedule;
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    historyGeneratingPlanId = null;
+    renderLearningPlans(loadedHistoryPlans);
+    if (buttonEl) buttonEl.disabled = false;
     setInputsDisabled({
       goal: true,          // stays locked
       preferences: false   // unlock these
@@ -820,9 +1107,14 @@ async function generateScheduleFromSavedPlan(planId) {
   } catch (err) {
     console.error(err);
     learningPlanLocked = false;
+    generatePlanBtn.disabled = false;
+    generateScheduleBtn.disabled = false;
+    if (buttonEl) buttonEl.disabled = false;
     setInputsDisabled({ goal: false, preferences: false });
     renderTopLearningPlan(learningPlan);
     renderTopScheduleMessage("Error generating schedule.");
+    historyGeneratingPlanId = null;
+    renderLearningPlans(loadedHistoryPlans);
   }
 }
 
@@ -938,11 +1230,18 @@ function jumpToSavedSchedule(scheduleId) {
   document.querySelectorAll('[id^="saved-schedule-details-"]').forEach(el => {
     el.classList.remove("open");
   });
+  document.querySelectorAll('[id^="saved-schedule-card-"] .toggle-sessions-btn').forEach(btn => {
+    btn.textContent = "Show Sessions";
+  });
   // Open the matching saved schedule card below
   const detailsEl = document.getElementById(`saved-schedule-details-${scheduleId}`);
   const cardEl = document.getElementById(`saved-schedule-card-${scheduleId}`);
   if (detailsEl) {
     detailsEl.classList.add("open");
+  }
+  const toggleBtn = cardEl?.querySelector(".toggle-sessions-btn");
+  if (toggleBtn) {
+    toggleBtn.textContent = "Hide Sessions";
   }
   if (cardEl) {
     cardEl.classList.add("highlight-card");
@@ -1378,6 +1677,23 @@ function hasScheduleConflict(candidateStart, candidateEnd, ignoreIndex = null) {
   return null;
 }
 
+function hasCalendarConflictOnly(candidateStart, candidateEnd) {
+  const start = new Date(candidateStart);
+  const end = new Date(candidateEnd);
+  if (isNaN(start) || isNaN(end) || end <= start) {
+    return "Invalid date/time range.";
+  }
+  for (const ev of getCurrentCalendarEventsForConflictCheck()) {
+    const existingStart = new Date(ev.start);
+    const existingEnd = new Date(ev.end);
+    if (isNaN(existingStart) || isNaN(existingEnd)) continue;
+    if (start < existingEnd && existingStart < end) {
+      return "This session clashes with an existing calendar event.";
+    }
+  }
+  return null;
+}
+
 function saveScheduleDraft(index) {
   if (!Array.isArray(schedule) || !schedule[index] || scheduleLocked) return;
   const draft = scheduleDrafts[index];
@@ -1596,3 +1912,8 @@ window.showAddScheduleForm = showAddScheduleForm;
 window.hideAddScheduleForm = hideAddScheduleForm;
 window.addExtraScheduleTopic = addExtraScheduleTopic;
 window.deleteAppliedSchedule = deleteAppliedSchedule;
+window.updateSavedScheduleField = updateSavedScheduleField;
+window.updateSavedScheduleSubtopics = updateSavedScheduleSubtopics;
+window.updateSavedScheduleDateTime = updateSavedScheduleDateTime;
+window.deleteSavedScheduleSession = deleteSavedScheduleSession;
+window.applyEditedSavedSchedule = applyEditedSavedSchedule;

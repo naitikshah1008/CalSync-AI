@@ -35,6 +35,7 @@ func initApp() (http.Handler, internal.Config, error) {
 	mux.HandleFunc("/api/v1/ai/save-learning-plan", endpoints.SaveLearningPlanHandler)
 	mux.HandleFunc("/api/v1/ai/save-schedule", endpoints.SaveScheduleHandler)
 	mux.HandleFunc("/api/v1/ai/unapply-schedule", endpoints.UnapplyScheduleHandler)
+	mux.HandleFunc("/api/v1/ai/learning-plans/update", endpoints.UpdateLearningPlanHandler)
 	mux.HandleFunc("/mcp", endpoints.MCPHandler)
 	return internal.LoggingMiddleware(mux), cfg, nil
 }

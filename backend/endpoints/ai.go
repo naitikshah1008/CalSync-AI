@@ -62,6 +62,11 @@ type SaveScheduleRequest struct {
 	Schedule            []map[string]any `json:"schedule"`
 }
 
+type UpdateLearningPlanRequest struct {
+	SavedLearningPlanID *int             `json:"saved_learning_plan_id"`
+	LearningPlan        []map[string]any `json:"learning_plan"`
+}
+
 func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 	enableCORS(w, r)
 	if r.Method == http.MethodOptions {
@@ -650,6 +655,43 @@ func SaveLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"saved_learning_plan_id": planID,
+	})
+}
+
+func UpdateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	user, err := currentUserFromRequest(r)
+	if err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		return
+	}
+	var req UpdateLearningPlanRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON body", http.StatusBadRequest)
+		return
+	}
+	if req.SavedLearningPlanID == nil {
+		http.Error(w, "missing saved_learning_plan_id", http.StatusBadRequest)
+		return
+	}
+	payload := map[string]any{
+		"learning_plan": req.LearningPlan,
+	}
+	if err := updateLearningPlan(r.Context(), user.ID, *req.SavedLearningPlanID, payload); err != nil {
+		http.Error(w, "failed to update learning plan", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"saved_learning_plan_id": *req.SavedLearningPlanID,
+		"status":                 "updated",
 	})
 }
 
