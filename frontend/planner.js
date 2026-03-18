@@ -616,8 +616,8 @@ approveBtn.addEventListener("click", async () => {
     alert("Schedule must be saved before applying.");
     return;
   }
-  learningPlanLocked = false;
-  scheduleLocked = false;
+  learningPlanLocked = true;
+  scheduleLocked = true;
   renderTopLearningPlan(learningPlan);
   renderTopSchedule(schedule);
   approveBtn.disabled = true;
@@ -651,13 +651,17 @@ approveBtn.addEventListener("click", async () => {
       return;
     }
     if (res.status === 409) {
-      learningPlanLocked = true;
-      scheduleLocked = true;
+      learningPlanLocked = false;
+      scheduleLocked = false;
       renderTopLearningPlan(learningPlan);
       renderTopSchedule(schedule);
       generatePlanBtn.disabled = false;
       generateScheduleBtn.disabled = false;
       approveBtn.disabled = true;
+      if (deleteAppliedBtn) {
+        deleteAppliedBtn.disabled = false;
+      }
+      setInputsDisabled({ goal: false, preferences: false });
       document.body.classList.remove("loading-cursor");
       alert(data.error || "This schedule has already been applied.");
       if (typeof loadHistory === "function") {
