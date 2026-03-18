@@ -161,7 +161,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     });
   }
   if (daysPerWeekInput) {
-    daysPerWeekInput.addEventListener("input", () => {
+    daysPerWeekInput.addEventListener("change", () => {
       if (typeof normalizeDaysPerWeekInput === "function") {
         normalizeDaysPerWeekInput();
       }
@@ -170,12 +170,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       }
       updateQuickStats();
     });
+    daysPerWeekInput.addEventListener("input", () => {
+      updateQuickStats();
+    });
   }
   if (hoursPerDayInput) {
-    hoursPerDayInput.addEventListener("input", () => {
+    hoursPerDayInput.addEventListener("change", () => {
       if (typeof normalizeHoursPerDayInput === "function") {
         normalizeHoursPerDayInput();
       }
+      updateQuickStats();
+    });
+    hoursPerDayInput.addEventListener("input", () => {
       updateQuickStats();
     });
   }

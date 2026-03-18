@@ -168,42 +168,11 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 			"end":     end,
 		})
 	}
-	brainPayload := map[string]any{
-		"learning_plan":   req.LearningPlan,
-		"preferences":     req.Preferences,
-		"calendar_events": calendarEvents,
-	}
-	resp, err := postJSONToBrain("/ai/generate-schedule", brainPayload)
-	if err != nil {
-		http.Error(w, "failed to call brain service: "+err.Error(), http.StatusBadGateway)
-		return
-	}
-	defer resp.Body.Close()
-	raw, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "failed to read brain response", http.StatusBadGateway)
-		return
-	}
-	if resp.StatusCode >= 400 {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(resp.StatusCode)
-		_, _ = w.Write(raw)
-		return
-	}
-	var parsed map[string]any
-	if err := json.Unmarshal(raw, &parsed); err != nil {
-		http.Error(w, "failed to parse brain response", http.StatusBadGateway)
-		return
-	}
-	rawSchedule, _ := parsed["schedule"].([]any)
-	if len(rawSchedule) == 0 {
-		fallback := buildFallbackSchedule(req.LearningPlan, req.Preferences, calendarEvents)
-		parsed = map[string]any{
-			"schedule": fallback,
-			"source":   "deterministic_fallback",
-		}
-	}
-	writeJSON(w, http.StatusOK, parsed)
+	fallback := buildFallbackSchedule(req.LearningPlan, req.Preferences, calendarEvents)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"schedule": fallback,
+		"source":   "deterministic_scheduler",
+	})
 }
 
 func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 import requests
 import json
+import hashlib
+import re
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -18,6 +20,7 @@ app.add_middleware(
 
 OLLAMA_URL = "http://calsync-ollama:11434/api/generate"
 MODEL_NAME = "llama3.2:3b"
+LEARNING_PLAN_CACHE = {}
 
 @app.get("/health")
 def health(): return {"status": "brain container running"}
@@ -33,6 +36,7 @@ class Preferences(BaseModel):
     end_hour: int
     session_length_minutes: int
     days_per_week: int
+    day_type: str = "both"
 
 class ScheduleRequest(BaseModel):
     learning_plan: list
@@ -47,7 +51,13 @@ def _ollama_generate_json(prompt: str) -> dict:
     payload = {
         "model": MODEL_NAME,
         "prompt": prompt,
-        "stream": False
+        "stream": False,
+        "options": {
+            "temperature": 0,
+            "seed": 42,
+            "top_p": 0.9,
+            "num_predict": 1200
+        }
     }
     r = requests.post(OLLAMA_URL, json=payload, timeout=120)
     r.raise_for_status()
@@ -55,10 +65,19 @@ def _ollama_generate_json(prompt: str) -> dict:
     response_text = data.get("response", "").strip()
     start = response_text.find("{")
     end = response_text.rfind("}")
-    if start == -1 or end == -1 or end <= start: raise json.JSONDecodeError("No JSON object found in model response", response_text, 0)
+    if start == -1 or end == -1 or end <= start:
+        raise json.JSONDecodeError("No JSON object found in model response", response_text, 0)
     json_text = response_text[start:end + 1]
     return json.loads(json_text)
 
+def normalize_goal(goal: str) -> str:
+    goal = goal.strip().lower()
+    goal = re.sub(r"\s+", " ", goal)
+    return goal
+
+def learning_plan_cache_key(goal: str, total_hours: int | None) -> str:
+    normalized = f"{normalize_goal(goal)}::{total_hours or 10}"
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 def _normalize_events(events: list) -> list:
     normalized = []
@@ -139,31 +158,53 @@ def test_llm(req: LLMRequest):
 def generate_learning_plan(req: LearningPlanRequest):
     if not req.goal.strip():
         return {"error": "goal is required"}
+    cache_key = learning_plan_cache_key(req.goal, req.total_hours)
+    if cache_key in LEARNING_PLAN_CACHE:
+        return {
+            **LEARNING_PLAN_CACHE[cache_key],
+            "source": "cache"
+        }
     prompt = f"""
-    You are an expert learning coach.
-    Return ONLY valid JSON. No markdown. No explanation text.
-    Schema:
-    {{
-      "learning_plan": [
+        You are an expert learning coach.
+
+        Return ONLY valid JSON.
+        Do not return markdown.
+        Do not return explanation text.
+        Do not return extra keys.
+
+        Schema:
         {{
-          "topic": "string",
-          "description": "string",
-          "subtopics": ["string", "string"],
-          "estimated_hours": number,
-          "difficulty_rating": "easy" | "medium" | "hard"
+        "learning_plan": [
+            {{
+            "topic": "string",
+            "description": "string",
+            "subtopics": ["string", "string"],
+            "estimated_hours": number,
+            "difficulty_rating": "easy" | "medium" | "hard"
+            }}
+        ],
+        "total_estimated_hours": number
         }}
-      ],
-      "total_estimated_hours": number
-    }}
-    Constraints:
-    - Goal: {req.goal}
-    - Target total hours (approx): {req.total_hours}
-    - Use 6 to 12 topics
-    - difficulty_rating must be exactly: easy, medium, or hard
-    """
+
+        Rules:
+        - Goal: {req.goal}
+        - Target total hours: {req.total_hours}
+        - Generate 8 topics exactly
+        - Topics must be ordered from beginner to advanced
+        - Avoid unnecessary variation
+        - For the same goal, return a very similar structure every time
+        - difficulty_rating must be exactly one of: easy, medium, hard
+        - estimated_hours must be realistic and consistent
+        - Every topic must have 3 to 5 subtopics
+        - Keep topic names concise and practical
+        """
     try:
         plan = _ollama_generate_json(prompt)
-        return plan
+        LEARNING_PLAN_CACHE[cache_key] = plan
+        return {
+            **plan,
+            "source": "llm"
+        }
     except json.JSONDecodeError as e:
         return {"error": "Failed to parse model JSON", "details": str(e)}
     except Exception as e:

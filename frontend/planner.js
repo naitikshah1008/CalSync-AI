@@ -131,9 +131,19 @@ generatePlanBtn.addEventListener("click", async () => {
 
 function setInputsDisabled({ goal = false, preferences = false } = {}) {
   if (goalInput) goalInput.disabled = goal;
-  if (dayTypeSelect) dayTypeSelect.disabled = preferences;
-  if (daysPerWeekInput) daysPerWeekInput.disabled = preferences;
-  if (hoursPerDayInput) hoursPerDayInput.disabled = preferences;
+  if (dayTypeSelect) {
+    dayTypeSelect.disabled = preferences;
+  }
+  if (daysPerWeekInput) {
+    const shouldDisableDays =
+      preferences || !dayTypeSelect?.value || dayTypeSelect?.value === "weekends";
+    daysPerWeekInput.disabled = shouldDisableDays;
+  }
+  if (hoursPerDayInput) {
+    const shouldDisableHours =
+      preferences || !dayTypeSelect?.value || !daysPerWeekInput?.value;
+    hoursPerDayInput.disabled = shouldDisableHours;
+  }
 }
 
 function setAppliedScheduleUI(isApplied) {
@@ -143,14 +153,14 @@ function setAppliedScheduleUI(isApplied) {
   if (deleteAppliedBtn) {
     deleteAppliedBtn.disabled = !isApplied;
   }
-  scheduleLocked = isApplied;
-  learningPlanLocked = isApplied;
-  if (!isApplied) {
-    setInputsDisabled({
-      goal: true,
-      preferences: false
-    });
-  }
+  // Do NOT lock the planner after apply.
+  // Keep the current generated plan/schedule visible and editable.
+  scheduleLocked = false;
+  learningPlanLocked = false;
+  setInputsDisabled({
+    goal: false,
+    preferences: false
+  });
   if (Array.isArray(learningPlan)) {
     renderTopLearningPlan(learningPlan);
   }
@@ -250,26 +260,26 @@ function syncPreferenceInputs() {
   }
 }
 
-function normalizeHoursPerDayInput() {
-  if (!hoursPerDayInput || hoursPerDayInput.disabled) return;
-  const max = 24;
-  const min = 1;
-  let value = Number(hoursPerDayInput.value || min);
-  if (Number.isNaN(value)) value = min;
-  if (value < min) value = min;
-  if (value > max) value = max;
-  hoursPerDayInput.value = value;
-}
-
 function normalizeDaysPerWeekInput() {
   if (!daysPerWeekInput || daysPerWeekInput.disabled) return;
   const max = Number(daysPerWeekInput.max || 7);
   const min = Number(daysPerWeekInput.min || 1);
-  let value = Number(daysPerWeekInput.value || min);
+  let value = Number(daysPerWeekInput.value);
   if (Number.isNaN(value)) value = min;
   if (value < min) value = min;
   if (value > max) value = max;
   daysPerWeekInput.value = value;
+}
+
+function normalizeHoursPerDayInput() {
+  if (!hoursPerDayInput || hoursPerDayInput.disabled) return;
+  const max = 24;
+  const min = 1;
+  let value = Number(hoursPerDayInput.value);
+  if (Number.isNaN(value)) value = min;
+  if (value < min) value = min;
+  if (value > max) value = max;
+  hoursPerDayInput.value = value;
 }
 
 function getSchedulePreferences() {
@@ -466,6 +476,27 @@ generateScheduleBtn.addEventListener("click", async () => {
     return;
   }
   try {
+    normalizeDaysPerWeekInput();
+    normalizeHoursPerDayInput();
+    const daysValue = Number(daysPerWeekInput.value || 0);
+    const hoursValue = Number(hoursPerDayInput.value || 0);
+    const maxDays =
+      dayTypeSelect.value === "weekends" ? 2 :
+      dayTypeSelect.value === "weekdays" ? 5 : 7;
+    if (daysValue < 1 || daysValue > maxDays) {
+      alert(`Days per week must be between 1 and ${maxDays}.`);
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
+      return;
+    }
+    if (hoursValue < 1 || hoursValue > 24) {
+      alert("Hours per day must be between 1 and 24.");
+      generatePlanBtn.disabled = false;
+      generateScheduleBtn.disabled = false;
+      setInputsDisabled({ goal: false, preferences: false });
+      return;
+    }
     const res = await fetch(`${API_BASE}/api/v1/ai/generate-schedule`, {
       method: "POST",
       credentials: "include",
@@ -585,8 +616,8 @@ approveBtn.addEventListener("click", async () => {
     alert("Schedule must be saved before applying.");
     return;
   }
-  learningPlanLocked = true;
-  scheduleLocked = true;
+  learningPlanLocked = false;
+  scheduleLocked = false;
   renderTopLearningPlan(learningPlan);
   renderTopSchedule(schedule);
   approveBtn.disabled = true;
@@ -661,14 +692,16 @@ approveBtn.addEventListener("click", async () => {
       return;
     }
     alert(`Created ${data.events_created?.length || 0} events`);
-    generatePlanBtn.disabled = false;
-    generateScheduleBtn.disabled = false;
     document.body.classList.remove("loading-cursor");
     setAppliedScheduleUI(true);
-    if (typeof loadEvents === "function") {
-      loadEvents();
+    try {
+      if (typeof loadEvents === "function") {
+        await loadEvents();
+      }
+      await loadHistory();
+    } catch (refreshErr) {
+      console.error("Post-apply refresh failed:", refreshErr);
     }
-    await loadHistory();
   } catch (err) {
     learningPlanLocked = false;
     scheduleLocked = false;
@@ -1911,7 +1944,7 @@ async function deleteAppliedSchedule() {
     generatePlanBtn.disabled = false;
     generateScheduleBtn.disabled = false;
     scheduleLocked = false;
-    learningPlanLocked = true;
+    learningPlanLocked = false;
     if (approveBtn) {
       approveBtn.disabled = false;
     }
