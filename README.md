@@ -30,7 +30,10 @@ Backend (Go API)
         ↓
 Google Calendar API
 
+---
+
 ## ⚙️ Services
+
 | Service  | Purpose |
 |----------|---------|
 | frontend | UI for user interaction |
