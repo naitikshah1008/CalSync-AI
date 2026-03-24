@@ -29,6 +29,7 @@ Brain (FastAPI - AI Orchestration)
 Backend (Go API)
         ↓
 Google Calendar API
+'''
 
 ---
 
