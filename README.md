@@ -302,6 +302,15 @@ curl http://localhost:5005/health
 
 ---
 
+## 🧑‍💻 Author
+- Naitik Shah
+- Master of Engineering in Computer Science
+- Oregon State University
+- 🔗 [LinkedIn](https://www.linkedin.com/in/naitik1008)  
+- 🔗 [GitHub](https://github.com/naitikshah1008)
+
+---
+
 ## 📜 License
 
 MIT License  
