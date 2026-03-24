@@ -19,6 +19,43 @@ It uses a local LLM via Ollama combined with a tool-based architecture (MCP) to 
 
 ---
 
+## 📸 Screenshots
+
+### 🧠 AI Learning Plan Generation
+![Learning Plan](./assets/learning-plan.png)
+
+> Automatically generates structured topics with difficulty levels, time estimates, and subtopics.
+
+---
+
+### 📅 Smart Schedule Generation
+![Schedule](./assets/schedule.png)
+
+> Converts your learning plan into a clean, editable schedule based on your availability.
+
+---
+
+### ⚡ Planner Dashboard
+![Dashboard](./assets/dashboard.png)
+
+> Define your goal, configure study preferences, and manage your entire workflow in one place.
+
+---
+
+### 🔗 Google Calendar Sync
+![Calendar](./assets/calendar.png)
+
+> Approved schedules are instantly converted into real Google Calendar events.
+
+---
+
+### 📊 Calendar & History View
+![History](./assets/history.png)
+
+> View upcoming events, track applied schedules, and manage saved plans and sessions.
+
+---
+
 ## 🏗️ Architecture
 
 ```text
@@ -30,6 +67,14 @@ Backend (Go API)
         ↓
 Google Calendar API
 ```
+
+### 🔄 System Flow
+
+- User enters goal → Frontend  
+- Frontend calls Backend APIs  
+- Backend sends request to Brain (AI)  
+- Brain uses Ollama (LLM) to generate plan/schedule  
+- Backend validates + syncs with Google Calendar  
 
 ---
 
@@ -80,6 +125,15 @@ CalSync-AI/
 
 ---
 
+## 🔗 Google OAuth Setup
+
+1. Go to Google Cloud Console  
+2. Create OAuth 2.0 credentials  
+3. Add this redirect URI: http://localhost:8080/auth/google/callback
+4. Copy your credentials into `backend/.env`
+
+---
+
 ### 1. Clone the Repository
 
 ```bash
@@ -91,7 +145,14 @@ cd CalSync-AI
 ```bash
 docker compose up --build
 ```
-### 3. Access the App
+
+### 3. Pull Ollama Model
+
+```bash
+docker exec -it calsync-ollama ollama pull llama3.2:3b
+```
+
+### 4. Access the App
 
 | Service  | URL |
 |----------|-----|
@@ -102,12 +163,34 @@ docker compose up --build
 
 ---
 
+## 🔐 Environment Variables
+
+Create a `.env` file inside `backend/`:
+
+```env
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+GOOGLE_REDIRECT_URL=http://localhost:8080/auth/google/callback
+
+SESSION_SECRET=your_secret
+
+DATABASE_URL=postgres://calsync:calsyncpassword@postgres:5432/calsync?sslmode=disable
+
+FRONTEND_ORIGIN=http://localhost:8000
+FRONTEND_REDIRECT_URL=http://localhost:8000/main.html
+
+BRAIN_BASE_URL=http://calsync-brain:5005
+POST /api/v1/ai/generate-learning-plan
+```
+
+---
+
 ## 🤖 AI Workflow
 
 ### 1. Generate Learning Plan
 
 ```http
-POST /ai/generate-learning-plan
+POST /api/v1/ai/generate-learning-plan
 ```
 
 **Input:**
@@ -124,12 +207,12 @@ POST /ai/generate-learning-plan
 
 | Field        | Value |
 |-------------|------|
-| Endpoint    | `POST /ai/generate-schedule` |
+| Endpoint    | `POST /api/v1/ai/generate-schedule` |
 | Constraints | No past dates, no conflicts, one session/day, respects time window |
 
 ### 3. Apply Schedule
 
-**Endpoint:** `POST /ai/apply-schedule`
+**Endpoint:** `POST /api/v1/ai/apply-schedule`
 
 Creates real Google Calendar events from the generated schedule.
 
