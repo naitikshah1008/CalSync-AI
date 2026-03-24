@@ -21,36 +21,22 @@ It uses a local LLM via Ollama combined with a tool-based architecture (MCP) to 
 
 ## 📸 Screenshots
 
-### 🧠 AI Learning Plan Generation
-![Learning Plan](./assets/learning-plan.png)
-
-> Automatically generates structured topics with difficulty levels, time estimates, and subtopics.
-
----
-
-### 📅 Smart Schedule Generation
-![Schedule](./assets/schedule.png)
-
-> Converts your learning plan into a clean, editable schedule based on your availability.
-
----
-
 ### ⚡ Planner Dashboard
-![Dashboard](./assets/dashboard.png)
+![Dashboard](frontend/assets/dashboard.png)
 
 > Define your goal, configure study preferences, and manage your entire workflow in one place.
 
 ---
 
 ### 🔗 Google Calendar Sync
-![Calendar](./assets/calendar.png)
+![Calendar](frontend/assets/calendar.png)
 
 > Approved schedules are instantly converted into real Google Calendar events.
 
 ---
 
 ### 📊 Calendar & History View
-![History](./assets/history.png)
+![History](frontend/assets/history.png)
 
 > View upcoming events, track applied schedules, and manage saved plans and sessions.
 
