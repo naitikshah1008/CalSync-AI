@@ -1,19 +1,27 @@
-🚀 CalSync AI
+# 🚀 CalSync AI
 
-AI-Powered Smart Scheduling & Productivity Assistant (Local LLM + Google Calendar)
+**AI-Powered Smart Scheduling & Productivity Assistant (Local LLM + Google Calendar)**
 
 CalSync AI is a local-first AI productivity system that generates structured learning plans, converts them into optimized schedules, and automatically syncs them with Google Calendar.
 
 It uses a local LLM via Ollama combined with a tool-based architecture (MCP) to create a powerful, extensible personal AI assistant.
 
-✨ Features
-🧠 AI-Generated Learning Plans
-📅 Smart Schedule Generation (No Conflicts)
-🔗 Google Calendar Integration (OAuth2)
-⚙️ MCP Tooling (AI → Real Actions)
-🐳 Fully Dockerized Setup
-🔒 Local LLM (No external AI APIs required)
-🏗️ Architecture
+---
+
+## ✨ Features
+
+- 🧠 AI-Generated Learning Plans  
+- 📅 Smart Schedule Generation (No Conflicts)  
+- 🔗 Google Calendar Integration (OAuth2)  
+- ⚙️ MCP Tooling (AI → Real Actions)  
+- 🐳 Fully Dockerized Setup  
+- 🔒 Local LLM (No external AI APIs required)  
+
+---
+
+## 🏗️ Architecture
+
+```text
 Frontend (HTML + JS)
         ↓
 Brain (FastAPI - AI Orchestration)
@@ -21,6 +29,7 @@ Brain (FastAPI - AI Orchestration)
 Backend (Go API)
         ↓
 Google Calendar API
+
 ⚙️ Services
 | Service  | Purpose |
 |----------|---------|
