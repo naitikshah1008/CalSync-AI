@@ -47,27 +47,12 @@ Google Calendar API
 
 ## 🧰 Tech Stack
 
-### Frontend
-- HTML
-- CSS
-- Vanilla JS
-
-### Backend
-- Go (net/http)
-- PostgreSQL
-
-### AI Layer
-- FastAPI (Python)
-
-### LLM Runtime
-- Ollama (local models)
-
-### Integration
-- Google Calendar API (OAuth2)
-
-### Infrastructure
-- Docker + Docker Compose
-- Nginx (frontend proxy)
+- **Frontend:** HTML, Vanilla JS  
+- **Backend:** Go (net/http)  
+- **AI Layer:** FastAPI (Python)  
+- **LLM Runtime:** Ollama (`llama3.2:3b`)  
+- **Integration:** Google Calendar API  
+- **Infra:** Docker + Docker Compose  
 
 ---
 
