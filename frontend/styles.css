@@ -700,14 +700,10 @@ html, body {
 }
 
 .app-footer {
-  margin-top: auto;
-  padding: 24px 0;
+  margin-top: 24px;
+  padding: 24px 0 20px;
   text-align: center;
   color: var(--muted);
   font-size: 14px;
   opacity: 0.85;
-}
-
-.app-footer p {
-  margin: 0;
 }
