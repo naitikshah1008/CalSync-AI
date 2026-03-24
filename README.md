@@ -32,28 +32,44 @@ Google Calendar API
 
 ---
 
-## ⚙️ Services
+## ⚙️ Services Overview
 
-| Service  | Purpose |
-|----------|---------|
-| frontend | UI for user interaction |
-| brain    | AI logic, planning, scheduling |
-| backend  | Google OAuth + Calendar APIs |
-| ollama   | Local LLM inference |
-🧰 Tech Stack
-Frontend: HTML, Vanilla JS
-Backend: Go (net/http)
-AI Layer: FastAPI (Python)
-LLM Runtime: Ollama (llama3.2:3b)
-Integration: Google Calendar API
-Infra: Docker + Docker Compose
-📁 Project Structure
-CalSync-AI/
-├── backend/        # Go API (OAuth + Calendar + MCP)
-├── brain/          # FastAPI AI engine
-├── frontend/       # UI (HTML + JS)
-├── docker-compose.yml
-└── README.md
+| Service   | Purpose |
+|-----------|--------|
+| frontend  | UI for user interaction |
+| brain     | AI logic (plan + schedule generation) |
+| backend   | OAuth, DB, calendar sync, MCP |
+| ollama    | Local LLM inference |
+| postgres  | Persistent storage |
+
+---
+
+## 🧰 Tech Stack
+
+### Frontend
+- HTML
+- CSS
+- Vanilla JS
+
+### Backend
+- Go (net/http)
+- PostgreSQL
+
+### AI Layer
+- FastAPI (Python)
+
+### LLM Runtime
+- Ollama (local models)
+
+### Integration
+- Google Calendar API (OAuth2)
+
+### Infrastructure
+- Docker + Docker Compose
+- Nginx (frontend proxy)
+
+---
+
 🚀 Getting Started
 Prerequisites
 Docker
