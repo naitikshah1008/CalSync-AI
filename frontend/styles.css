@@ -698,3 +698,16 @@ html, body {
 .app-logo {
   filter: drop-shadow(0 0 6px rgba(99, 179, 255, 0.4));
 }
+
+.app-footer {
+  margin-top: auto;
+  padding: 24px 0;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.app-footer p {
+  margin: 0;
+}
