@@ -22,11 +22,12 @@ Backend (Go API)
         ↓
 Google Calendar API
 ⚙️ Services
-Service	Purpose
-frontend	UI for user interaction
-brain	AI logic, planning, scheduling
-backend	Google OAuth + Calendar APIs
-ollama	Local LLM inference
+| Service  | Purpose |
+|----------|---------|
+| frontend | UI for user interaction |
+| brain    | AI logic, planning, scheduling |
+| backend  | Google OAuth + Calendar APIs |
+| ollama   | Local LLM inference |
 🧰 Tech Stack
 Frontend: HTML, Vanilla JS
 Backend: Go (net/http)
