@@ -1,4 +1,4 @@
-# 🚀 CalSync AI
+# CalSync AI
 
 **AI-Powered Smart Scheduling & Productivity Assistant (Local LLM + Google Calendar)**
 
@@ -8,41 +8,41 @@ It uses a local LLM via Ollama combined with a tool-based architecture (MCP) to 
 
 ---
 
-## ✨ Features
+## Features
 
-- 🧠 AI-Generated Learning Plans  
-- 📅 Smart Schedule Generation (No Conflicts)  
-- 🔗 Google Calendar Integration (OAuth2)  
-- ⚙️ MCP Tooling (AI → Real Actions)  
-- 🐳 Fully Dockerized Setup  
-- 🔒 Local LLM (No external AI APIs required)  
+-  AI-Generated Learning Plans  
+-  Smart Schedule Generation (No Conflicts)  
+-  Google Calendar Integration (OAuth2)  
+-  MCP Tooling (AI → Real Actions)  
+-  Fully Dockerized Setup  
+-  Local LLM (No external AI APIs required)  
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
-### ⚡ Planner Dashboard
+### Planner Dashboard
 ![Dashboard](frontend/assets/dashboard.png)
 
 > Define your goal, configure study preferences, and manage your entire workflow in one place.
 
 ---
 
-### 🔗 Google Calendar Sync
+### Google Calendar Sync
 ![Calendar](frontend/assets/calendar.png)
 
 > Approved schedules are instantly converted into real Google Calendar events.
 
 ---
 
-### 📊 Calendar & History View
+### Calendar & History View
 ![History](frontend/assets/history.png)
 
 > View upcoming events, track applied schedules, and manage saved plans and sessions.
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```text
 Frontend (HTML + JS)
@@ -54,7 +54,7 @@ Backend (Go API)
 Google Calendar API
 ```
 
-### 🔄 System Flow
+### System Flow
 
 - User enters goal → Frontend  
 - Frontend calls Backend APIs  
@@ -64,7 +64,7 @@ Google Calendar API
 
 ---
 
-## ⚙️ Services Overview
+## Services Overview
 
 | Service   | Purpose |
 |-----------|--------|
@@ -76,7 +76,7 @@ Google Calendar API
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 - **Frontend:** HTML, Vanilla JS  
 - **Backend:** Go (net/http)  
@@ -87,7 +87,7 @@ Google Calendar API
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 CalSync-AI/
@@ -100,7 +100,7 @@ CalSync-AI/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -111,7 +111,7 @@ CalSync-AI/
 
 ---
 
-## 🔗 Google OAuth Setup
+## Google OAuth Setup
 
 1. Go to Google Cloud Console  
 2. Create OAuth 2.0 credentials  
@@ -149,7 +149,7 @@ docker exec -it calsync-ollama ollama pull llama3.2:3b
 
 ---
 
-## 🔐 Environment Variables
+## Environment Variables
 
 Create a `.env` file inside `backend/`:
 
@@ -171,7 +171,7 @@ POST /api/v1/ai/generate-learning-plan
 
 ---
 
-## 🤖 AI Workflow
+## AI Workflow
 
 ### 1. Generate Learning Plan
 
@@ -204,13 +204,13 @@ Creates real Google Calendar events from the generated schedule.
 
 ---
 
-## 🔗 Google Calendar Integration
+## Google Calendar Integration
 
 **Current Status:** Moving toward app-owned multi-user OAuth  
 
 ---
 
-### 🔐 Planned OAuth Flow
+### Planned OAuth Flow
 
 1. User clicks **Sign in with Google**  
 2. Backend redirects to **Google OAuth**  
@@ -220,7 +220,7 @@ Creates real Google Calendar events from the generated schedule.
 
 ---
 
-## ⚠️ Current Limitations
+## Current Limitations
 
 - Local/dev-oriented setup  
 - Production deployment in progress  
@@ -229,9 +229,9 @@ Creates real Google Calendar events from the generated schedule.
 
 ---
 
-## 🧪 Debugging
+## Debugging
 
-### 📄 View Logs
+### View Logs
 
 ```bash
 docker logs -f calsync-backend
@@ -252,9 +252,9 @@ curl http://localhost:5005/health
 
 ---
 
-## 🧠 Roadmap
+## Roadmap
 
-### 🔐 Authentication & Scaling
+### Authentication & Scaling
 
 - [ ] Full multi-user Google OAuth  
 - [ ] Persistent database-backed user/session storage  
@@ -262,7 +262,7 @@ curl http://localhost:5005/health
 
 ---
 
-### 🤖 AI Improvements
+### AI Improvements
 
 - [ ] Better JSON parsing reliability  
 - [ ] Multi-week scheduling  
@@ -271,7 +271,7 @@ curl http://localhost:5005/health
 
 ---
 
-### 🚀 Product Expansion
+### Product Expansion
 
 - [ ] Gmail integration  
 - [ ] Notes & documents  
@@ -280,7 +280,7 @@ curl http://localhost:5005/health
 
 ---
 
-### 🌐 Deployment
+### Deployment
 
 - [ ] HTTPS (SSL)  
 - [ ] Reverse proxy  
@@ -289,7 +289,7 @@ curl http://localhost:5005/health
 
 ---
 
-## 🧠 Model Strategy
+## Model Strategy
 
 **Current Model:**
 - llama3.2:3b (Ollama)
@@ -302,7 +302,7 @@ curl http://localhost:5005/health
 
 ---
 
-## 🧑‍💻 Author
+## Author
 - Naitik Shah
 - Master of Engineering in Computer Science
 - Oregon State University
@@ -311,13 +311,13 @@ curl http://localhost:5005/health
 
 ---
 
-## 📜 License
+## License
 
 MIT License  
 
 ---
 
-## 🙌 Acknowledgements
+## Acknowledgements
 
 - Ollama  
 - Google Calendar API  
@@ -326,7 +326,7 @@ MIT License
 
 ---
 
-## 💡 Vision
+## Vision
 
 CalSync AI is evolving into a full personal AI system for:
 
