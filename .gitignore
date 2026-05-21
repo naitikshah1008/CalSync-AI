@@ -1,3 +1,5 @@
 backend/logs/requests_log.csv
 backend/.env
 .env
+__pycache__/
+PROJECT_STATUS.md
