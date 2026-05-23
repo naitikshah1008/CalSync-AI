@@ -5,6 +5,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	_ "time/tzdata"
 
 	"google.golang.org/api/calendar/v3"
 )
@@ -13,8 +14,8 @@ func nowRFC3339() string {
 	return time.Now().Format(time.RFC3339)
 }
 
-func nextWeekRFC3339() string {
-	return time.Now().Add(7 * 24 * time.Hour).Format(time.RFC3339)
+func nextYearRFC3339() string {
+	return time.Now().AddDate(1, 0, 0).Format(time.RFC3339)
 }
 
 func joinSubtopics(items []string) string {
@@ -39,8 +40,9 @@ func buildFallbackSchedule(learningPlan []map[string]any, preferences Preference
 	if sessionDuration <= 0 {
 		sessionDuration = 90 * time.Minute
 	}
-	now := time.Now()
-	startDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	loc := scheduleLocation(preferences.TimeZone)
+	now := time.Now().In(loc)
+	startDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	var out []map[string]any
 	usedDays := map[string]bool{}
 	usedWeekCounts := map[string]int{}
@@ -108,6 +110,17 @@ func buildFallbackSchedule(learningPlan []map[string]any, preferences Preference
 		}
 	}
 	return out
+}
+
+func scheduleLocation(timeZone string) *time.Location {
+	if strings.TrimSpace(timeZone) == "" {
+		return time.Local
+	}
+	loc, err := time.LoadLocation(timeZone)
+	if err != nil {
+		return time.Local
+	}
+	return loc
 }
 
 func findNextAvailableSlot(

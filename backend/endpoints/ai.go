@@ -4,11 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 )
 
 type LearningPlanRequest struct {
@@ -22,6 +26,7 @@ type Preferences struct {
 	SessionLengthMinutes int    `json:"session_length_minutes"`
 	DaysPerWeek          int    `json:"days_per_week"`
 	DayType              string `json:"day_type"`
+	TimeZone             string `json:"time_zone,omitempty"`
 }
 
 type ScheduleRequest struct {
@@ -75,6 +80,10 @@ func GenerateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if _, err := currentUserFromRequest(r); err != nil {
+		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 	var req LearningPlanRequest
@@ -137,8 +146,8 @@ func GenerateScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		SingleEvents(true).
 		OrderBy("startTime").
 		TimeMin(nowRFC3339()).
-		TimeMax(nextWeekRFC3339()).
-		MaxResults(50).
+		TimeMax(nextYearRFC3339()).
+		MaxResults(2500).
 		Do()
 	if err != nil {
 		http.Error(w, "failed to fetch calendar events: "+err.Error(), http.StatusInternalServerError)
@@ -195,6 +204,10 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid JSON body", http.StatusBadRequest)
 		return
 	}
+	if req.Apply && req.SavedScheduleID == nil {
+		http.Error(w, "saved_schedule_id is required when applying a schedule", http.StatusBadRequest)
+		return
+	}
 	if req.SavedScheduleID != nil {
 		rec, err := getScheduleStatus(r.Context(), *req.SavedScheduleID, user.ID)
 		if err != nil {
@@ -216,6 +229,7 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	previewEvents := make([]map[string]any, 0, len(req.Schedule))
+	createdEvents := make([]AppliedCalendarEvent, 0, len(req.Schedule))
 	for _, session := range req.Schedule {
 		title := fmt.Sprintf(
 			"%s (Session %d): %s",
@@ -240,24 +254,17 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		event := buildCalendarEvent(title, description, session.Start, session.End)
 		created, err := srv.Events.Insert("primary", event).Do()
 		if err != nil {
+			cleanupCreatedCalendarEvents(r.Context(), srv, createdEvents)
 			http.Error(w, "failed to create calendar event: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
-		if req.SavedScheduleID != nil {
-			if err := saveScheduleEvent(
-				r.Context(),
-				*req.SavedScheduleID,
-				user.ID,
-				created.Id,
-				created.HtmlLink,
-				title,
-				session.Start,
-				session.End,
-			); err != nil {
-				http.Error(w, "failed to save schedule event metadata", http.StatusInternalServerError)
-				return
-			}
-		}
+		createdEvents = append(createdEvents, AppliedCalendarEvent{
+			GoogleEventID: created.Id,
+			HTMLLink:      created.HtmlLink,
+			Title:         title,
+			StartTime:     session.Start,
+			EndTime:       session.End,
+		})
 	}
 	if !req.Apply {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -267,8 +274,9 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.SavedScheduleID != nil {
-		if err := markScheduleApplied(r.Context(), *req.SavedScheduleID); err != nil {
-			http.Error(w, "failed to mark schedule applied", http.StatusInternalServerError)
+		if err := saveAppliedScheduleMetadata(r.Context(), *req.SavedScheduleID, user.ID, createdEvents); err != nil {
+			cleanupCreatedCalendarEvents(r.Context(), srv, createdEvents)
+			http.Error(w, "failed to save applied schedule metadata", http.StatusInternalServerError)
 			return
 		}
 	}
@@ -276,6 +284,21 @@ func ApplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		"mode":           "applied",
 		"events_created": previewEvents,
 	})
+}
+
+func cleanupCreatedCalendarEvents(ctx context.Context, srv *calendar.Service, events []AppliedCalendarEvent) {
+	for _, ev := range events {
+		if ev.GoogleEventID == "" {
+			continue
+		}
+		_ = srv.Events.Delete("primary", ev.GoogleEventID).Context(ctx).Do()
+	}
+}
+
+func isGoogleCalendarNotFound(err error) bool {
+	var googleErr *googleapi.Error
+	return errors.As(err, &googleErr) &&
+		(googleErr.Code == http.StatusNotFound || googleErr.Code == http.StatusGone)
 }
 
 func UnapplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
@@ -330,7 +353,13 @@ func UnapplyScheduleHandler(w http.ResponseWriter, r *http.Request) {
 		err := srv.Events.Delete("primary", ev.GoogleEventID).Do()
 		if err == nil {
 			deletedGoogleEvents++
+			continue
 		}
+		if isGoogleCalendarNotFound(err) {
+			continue
+		}
+		http.Error(w, "failed to delete calendar event: "+err.Error(), http.StatusBadGateway)
+		return
 	}
 	if _, err := DB.ExecContext(r.Context(), `
 		DELETE FROM schedule_events
@@ -562,8 +591,11 @@ func DeleteScheduleHandler(w http.ResponseWriter, r *http.Request) {
 			deletedGoogleEvents++
 			continue
 		}
-		// If the event is already gone from Google Calendar,
-		// we still allow cleanup of our local records.
+		if isGoogleCalendarNotFound(err) {
+			continue
+		}
+		http.Error(w, "failed to delete calendar event: "+err.Error(), http.StatusBadGateway)
+		return
 	}
 	_, err = DB.ExecContext(r.Context(), `
 		DELETE FROM schedule_events
@@ -655,6 +687,10 @@ func UpdateLearningPlanHandler(w http.ResponseWriter, r *http.Request) {
 		"learning_plan": req.LearningPlan,
 	}
 	if err := updateLearningPlan(r.Context(), user.ID, *req.SavedLearningPlanID, payload); err != nil {
+		if errors.Is(err, ErrRecordNotFound) {
+			http.Error(w, "learning plan not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "failed to update learning plan", http.StatusInternalServerError)
 		return
 	}
