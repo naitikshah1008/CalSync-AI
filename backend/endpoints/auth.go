@@ -41,6 +41,15 @@ func oauthConfig() *oauth2.Config {
 }
 
 func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	state, err := randomToken(32)
 	if err != nil {
 		http.Error(w, "failed to create oauth state", http.StatusInternalServerError)
@@ -64,6 +73,15 @@ func GoogleLoginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	ctx := r.Context()
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
@@ -122,6 +140,15 @@ func GoogleOAuthCallbackHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AuthMeHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	user, err := currentUserFromRequest(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -133,6 +160,15 @@ func AuthMeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	enableCORS(w, r)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	cookie, err := r.Cookie(AppConfig.SessionCookieName)
 	if err == nil && cookie.Value != "" {
 		_, _ = DB.Exec(`DELETE FROM sessions WHERE id = $1`, cookie.Value)

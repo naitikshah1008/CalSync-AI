@@ -1,12 +1,11 @@
 package internal
 
 import (
-	"bytes"
 	"encoding/csv"
 	"encoding/json"
-	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -21,6 +20,12 @@ var logger *requestCSVLogger
 
 // InitRequestLogger initializes the global CSV logger.
 func InitRequestLogger(path string) error {
+	dir := filepath.Dir(path)
+	if dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+	}
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
@@ -70,23 +75,6 @@ func paramsToString(m map[string][]string) string {
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		// Only log POSTs? uncomment if you want that:
-		// if r.Method != http.MethodPost {
-		//     next.ServeHTTP(w, r)
-		//     return
-		// }
-		// Read body for logging + restore for handler
-		var bodyBytes []byte
-		if r.Body != nil {
-			bodyBytes, _ = io.ReadAll(r.Body)
-			r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-		}
-		_ = r.ParseForm()
-		bodyPreview := string(bodyBytes)
-		const maxBodyLog = 500
-		if len(bodyPreview) > maxBodyLog {
-			bodyPreview = bodyPreview[:maxBodyLog] + "...(truncated)"
-		}
 		next.ServeHTTP(w, r)
 		if logger == nil {
 			return
@@ -97,8 +85,8 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 			time.Now().Format(time.RFC3339),
 			r.Method,
 			r.URL.Path,
-			paramsToString(r.Form), // query + form params
-			bodyPreview,
+			paramsToString(r.URL.Query()),
+			"",
 			r.RemoteAddr,
 			time.Since(start).String(),
 		})

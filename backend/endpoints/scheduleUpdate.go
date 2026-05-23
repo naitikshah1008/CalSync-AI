@@ -2,6 +2,7 @@ package endpoints
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -41,6 +42,10 @@ func UpdateSavedScheduleHandler(w http.ResponseWriter, r *http.Request) {
 	if err := updateSavedSchedule(r.Context(), user.ID, payload.SavedScheduleID, map[string]any{
 		"schedule": payload.Schedule,
 	}); err != nil {
+		if errors.Is(err, ErrRecordNotFound) {
+			http.Error(w, "saved schedule not found", http.StatusNotFound)
+			return
+		}
 		http.Error(w, "failed to update saved schedule", http.StatusInternalServerError)
 		return
 	}

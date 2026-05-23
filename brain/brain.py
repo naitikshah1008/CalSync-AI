@@ -3,6 +3,7 @@ import requests
 import json
 import hashlib
 import re
+import os
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -12,8 +13,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv("BRAIN_CORS_ORIGINS", "http://localhost:8000").split(",")
+        if origin.strip()
+    ],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -37,6 +42,7 @@ class Preferences(BaseModel):
     session_length_minutes: int
     days_per_week: int
     day_type: str = "both"
+    time_zone: str | None = None
 
 class ScheduleRequest(BaseModel):
     learning_plan: list

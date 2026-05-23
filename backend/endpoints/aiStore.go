@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 )
+
+var ErrRecordNotFound = errors.New("record not found")
 
 func saveLearningPlan(ctx context.Context, userID int, goal string, totalHours int, plan any) (int, error) {
 	planJSON, err := json.Marshal(plan)
@@ -139,12 +142,22 @@ func updateLearningPlan(ctx context.Context, userID int, planID int, plan any) e
 	if err != nil {
 		return err
 	}
-	_, err = DB.ExecContext(ctx, `
+	res, err := DB.ExecContext(ctx, `
 		UPDATE learning_plans
 		SET plan_json = $1
 		WHERE id = $2 AND user_id = $3
 	`, planJSON, planID, userID)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
 }
 
 func updateSavedSchedule(ctx context.Context, userID int, scheduleID int, schedule any) error {
@@ -152,10 +165,20 @@ func updateSavedSchedule(ctx context.Context, userID int, scheduleID int, schedu
 	if err != nil {
 		return err
 	}
-	_, err = DB.ExecContext(ctx, `
+	res, err := DB.ExecContext(ctx, `
 		UPDATE schedules
 		SET schedule_json = $1
 		WHERE id = $2 AND user_id = $3
 	`, scheduleJSON, scheduleID, userID)
-	return err
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrRecordNotFound
+	}
+	return nil
 }
