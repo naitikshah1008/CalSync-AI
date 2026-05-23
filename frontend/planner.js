@@ -1,4 +1,7 @@
 const API_BASE = "";
+const SCHEDULE_START_HOUR = 18;
+const SCHEDULE_END_HOUR = 23;
+const MAX_HOURS_PER_DAY = SCHEDULE_END_HOUR - SCHEDULE_START_HOUR;
 
 let learningPlan = null;
 let schedule = null;
@@ -247,12 +250,12 @@ function syncPreferenceInputs() {
     } else {
     hoursPerDayInput.disabled = false;
     hoursPerDayInput.min = 1;
-    hoursPerDayInput.max = 24;
+    hoursPerDayInput.max = MAX_HOURS_PER_DAY;
     if (!hoursPerDayInput.value) {
       hoursPerDayInput.value = 1.5;
     }
-    if (Number(hoursPerDayInput.value) > 24) {
-      hoursPerDayInput.value = 24;
+    if (Number(hoursPerDayInput.value) > MAX_HOURS_PER_DAY) {
+      hoursPerDayInput.value = MAX_HOURS_PER_DAY;
     }
     if (Number(hoursPerDayInput.value) < 1) {
       hoursPerDayInput.value = 1;
@@ -273,7 +276,7 @@ function normalizeDaysPerWeekInput() {
 
 function normalizeHoursPerDayInput() {
   if (!hoursPerDayInput || hoursPerDayInput.disabled) return;
-  const max = 24;
+  const max = MAX_HOURS_PER_DAY;
   const min = 1;
   let value = Number(hoursPerDayInput.value);
   if (Number.isNaN(value)) value = min;
@@ -286,17 +289,18 @@ function getSchedulePreferences() {
   const dayType = dayTypeSelect?.value || "";
   const daysPerWeek = Number(daysPerWeekInput?.value || 0);
   const hoursPerDay = Number(hoursPerDayInput?.value || 0);
-  let startHour = 18;
-  let endHour = 18 + Math.max(1, Math.round(hoursPerDay || 1.5));
-  if (endHour > 23) {
-    endHour = 23;
+  const startHour = SCHEDULE_START_HOUR;
+  let endHour = SCHEDULE_START_HOUR + Math.max(1, Math.ceil(hoursPerDay || 1.5));
+  if (endHour > SCHEDULE_END_HOUR) {
+    endHour = SCHEDULE_END_HOUR;
   }
   return {
     start_hour: startHour,
     end_hour: endHour,
     session_length_minutes: Math.round((hoursPerDay || 1.5) * 60),
     days_per_week: daysPerWeek || 1,
-    day_type: dayType || "both"
+    day_type: dayType || "both",
+    time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone || ""
   };
 }
 
@@ -490,8 +494,8 @@ generateScheduleBtn.addEventListener("click", async () => {
       setInputsDisabled({ goal: false, preferences: false });
       return;
     }
-    if (hoursValue < 1 || hoursValue > 24) {
-      alert("Hours per day must be between 1 and 24.");
+    if (hoursValue < 1 || hoursValue > MAX_HOURS_PER_DAY) {
+      alert(`Hours per day must be between 1 and ${MAX_HOURS_PER_DAY}.`);
       generatePlanBtn.disabled = false;
       generateScheduleBtn.disabled = false;
       setInputsDisabled({ goal: false, preferences: false });
@@ -846,12 +850,12 @@ function renderLearningPlans(plans) {
     const linkedSchedule = findScheduleForLearningPlan(plan.id, loadedHistorySchedules);
     return `
       <div class="card">
-        <h4>${plan.goal || "Untitled Goal"}</h4>
+        <h4>${escapeHtml(plan.goal || "Untitled Goal")}</h4>
         <div class="meta">
-          ${linkedSchedule ? `Schedule ID: ${linkedSchedule.id}<br>` : "Schedule ID: —<br>"}
-          Created: ${formatDateTime(plan.created_at)}<br>
-          Total Hours: ${plan.total_hours ?? "-"}<br>
-          Topics: ${topics.length}
+          ${linkedSchedule ? `Schedule ID: ${escapeHtml(linkedSchedule.id)}<br>` : "Schedule ID: —<br>"}
+          Created: ${escapeHtml(formatDateTime(plan.created_at))}<br>
+          Total Hours: ${escapeHtml(plan.total_hours ?? "-")}<br>
+          Topics: ${escapeHtml(topics.length)}
         </div>
         <div class="action-row">
           <button
@@ -868,16 +872,16 @@ function renderLearningPlans(plans) {
               <div class="history-topic-card">
                 <div class="plan-topic-head">
                   <div>
-                    <h4 class="plan-topic-title">${topic.topic || "Untitled Topic"}</h4>
-                    <div class="muted-text">${topic.description || "No description provided."}</div>
+                    <h4 class="plan-topic-title">${escapeHtml(topic.topic || "Untitled Topic")}</h4>
+                    <div class="muted-text">${escapeHtml(topic.description || "No description provided.")}</div>
                   </div>
                   <div class="action-row" style="justify-content: flex-end; align-items: center;">
-                    <span class="chip">${topic.difficulty_rating || "unknown"}</span>
-                    <span class="chip">${topic.estimated_hours || 0}h</span>
+                    <span class="chip">${escapeHtml(topic.difficulty_rating || "unknown")}</span>
+                    <span class="chip">${escapeHtml(topic.estimated_hours || 0)}h</span>
                   </div>
                 </div>
                 <div class="topic-subtopics">
-                  ${(topic.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
+                  ${(topic.subtopics || []).map(sub => `<span class="tag">${escapeHtml(sub)}</span>`).join("")}
                 </div>
               </div>
             `).join("")}
@@ -916,11 +920,11 @@ function renderSchedules(schedules) {
       <div class="card" id="${cardId}">
         <h4>${escapeHtml(scheduleTitle)}</h4>
         <div class="meta">
-          <span class="chip ${statusClass}">${scheduleItem.status || "unknown"}</span>
-          Schedule ID: ${scheduleItem.id}<br>
-          Created: ${formatDateTime(scheduleItem.created_at)}<br>
-          ${scheduleItem.applied_at ? `Applied: ${formatDateTime(scheduleItem.applied_at)}<br>` : "Not applied yet<br>"}
-          Sessions: ${sessions.length}
+          <span class="chip ${statusClass}">${escapeHtml(scheduleItem.status || "unknown")}</span>
+          Schedule ID: ${escapeHtml(scheduleItem.id)}<br>
+          Created: ${escapeHtml(formatDateTime(scheduleItem.created_at))}<br>
+          ${scheduleItem.applied_at ? `Applied: ${escapeHtml(formatDateTime(scheduleItem.applied_at))}<br>` : "Not applied yet<br>"}
+          Sessions: ${escapeHtml(sessions.length)}
         </div>
         <div class="action-row">
           <button
@@ -954,7 +958,7 @@ function renderSchedules(schedules) {
                         ${isApplied ? "disabled" : ""}
                       />
                       <div class="muted-text" style="margin-top: 8px;">
-                        <strong>${weekday}</strong>
+                        <strong>${escapeHtml(weekday)}</strong>
                       </div>
                     </div>
                     <div class="action-row">
@@ -1263,16 +1267,19 @@ function renderScheduleEvents(events) {
   }
   historyScheduleEventsList.innerHTML = `
     <div class="card">
-      ${events.slice(0, 10).map(event => `
+      ${events.slice(0, 10).map(event => {
+        const link = safeExternalUrl(event.html_link);
+        return `
         <div class="event-row">
-          <strong>${event.title}</strong><br>
+          <strong>${escapeHtml(event.title)}</strong><br>
           <span class="meta">
-            ${formatDateTime(event.start_time)} -> ${formatDateTime(event.end_time)}<br>
-            Schedule ID: ${event.schedule_id}
+            ${escapeHtml(formatDateTime(event.start_time))} -> ${escapeHtml(formatDateTime(event.end_time))}<br>
+            Schedule ID: ${escapeHtml(event.schedule_id)}
           </span>
-          ${event.html_link ? `<br><a class="event-link" href="${event.html_link}" target="_blank">Open in Google Calendar</a>` : ""}
+          ${link ? `<br><a class="event-link" href="${escapeHtml(link)}" target="_blank" rel="noopener noreferrer">Open in Google Calendar</a>` : ""}
         </div>
-      `).join("")}
+      `;
+      }).join("")}
     </div>
   `;
 }
@@ -1348,19 +1355,19 @@ function renderTopLearningPlan(plan) {
     <div class="plan-topic-card">
       <div class="plan-topic-head">
         <div>
-          <h4 class="plan-topic-title">${topic.topic || "Untitled Topic"}</h4>
-          <div class="muted-text">${topic.description || "No description provided."}</div>
+          <h4 class="plan-topic-title">${escapeHtml(topic.topic || "Untitled Topic")}</h4>
+          <div class="muted-text">${escapeHtml(topic.description || "No description provided.")}</div>
         </div>
         <div class="action-row" style="justify-content: flex-end; align-items: center;">
-          <span class="chip">${topic.difficulty_rating || "unknown"}</span>
-          <span class="chip">${topic.estimated_hours || 0}h</span>
+          <span class="chip">${escapeHtml(topic.difficulty_rating || "unknown")}</span>
+          <span class="chip">${escapeHtml(topic.estimated_hours || 0)}h</span>
           <button class="icon-btn delete-btn" ${learningPlanLocked ? "disabled" : `onclick="deletePlanTopic(${index})"`} title="Delete topic" aria-label="Delete topic">
             <span class="trash-icon">🗑</span>
           </button>
         </div>
       </div>
       <div class="topic-subtopics">
-        ${(topic.subtopics || []).map(sub => `<span class="tag">${sub}</span>`).join("")}
+        ${(topic.subtopics || []).map(sub => `<span class="tag">${escapeHtml(sub)}</span>`).join("")}
       </div>
     </div>
   `).join("");
@@ -1421,7 +1428,7 @@ function renderTopSchedule(scheduleItems) {
                 ${scheduleLocked ? "disabled" : ""}
               />
               <div class="muted-text" style="margin-top: 8px;">
-                <strong>${weekday}</strong>
+                <strong>${escapeHtml(weekday)}</strong>
               </div>
             </div>
             <div class="action-row">
@@ -1496,14 +1503,14 @@ function renderTopSchedule(scheduleItems) {
 }
 
 function renderTopPlanMessage(message) {
-  planOutput.innerHTML = `<div class="output-empty">${message}</div>`;
+  planOutput.innerHTML = `<div class="output-empty">${escapeHtml(message)}</div>`;
   window.learningPlanState = [];
   if (typeof updateQuickStats === "function") updateQuickStats();
   syncTopSaveButtons();
 }
 
 function renderTopScheduleMessage(message) {
-  scheduleOutput.innerHTML = `<div class="output-empty">${message}</div>`;
+  scheduleOutput.innerHTML = `<div class="output-empty">${escapeHtml(message)}</div>`;
   window.scheduleState = [];
   if (typeof updateQuickStats === "function") updateQuickStats();
   syncTopSaveButtons();
@@ -1516,6 +1523,18 @@ function escapeHtml(str) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(String(value || ""));
+    if (url.protocol !== "https:") {
+      return "";
+    }
+    return url.href;
+  } catch {
+    return "";
+  }
 }
 
 function getScheduleDraft(index) {

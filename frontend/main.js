@@ -7,6 +7,15 @@ function formatEventTime(isoOrDate) {
   return new Date(isoOrDate).toLocaleString();
 }
 
+function escapeHtml(str) {
+  return String(str || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function updateQuickStats() {
   const statGoal = document.getElementById("statGoal");
   const statTopics = document.getElementById("statTopics");
@@ -74,11 +83,11 @@ function renderCalendarEvents(events) {
   listEl.innerHTML = events.map(ev => `
     <div class="calendar-event-card">
       <div class="calendar-event-head">
-        <h4 class="calendar-event-title">${ev.summary || "(no title)"}</h4>
+        <h4 class="calendar-event-title">${escapeHtml(ev.summary || "(no title)")}</h4>
         <span class="tag">Calendar</span>
       </div>
       <div class="muted-text">
-        ${formatEventTime(ev.start)} -> ${formatEventTime(ev.end)}
+        ${escapeHtml(formatEventTime(ev.start))} -> ${escapeHtml(formatEventTime(ev.end))}
       </div>
     </div>
   `).join("");
