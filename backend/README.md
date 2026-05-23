@@ -21,10 +21,10 @@ It acts as the central layer between the frontend, AI brain service, database, a
 ## 🔗 Key Endpoints
 
 ### 🔐 Authentication
-- GET  /auth/google/login  
-- GET  /auth/google/callback  
-- GET  /auth/me  
-- GET  /auth/logout  
+- GET  /auth/google/login
+- GET  /auth/google/callback
+- GET  /auth/me
+- POST /auth/logout
 
 ---
 
@@ -45,7 +45,7 @@ It acts as the central layer between the frontend, AI brain service, database, a
 ---
 
 ### ✏️ Updates & Deletion
-- PUT    /api/v1/ai/learning-plans/update  
+- POST   /api/v1/ai/learning-plans/update
 - PUT    /api/v1/ai/schedules/update  
 - DELETE /api/v1/ai/learning-plans/delete  
 - DELETE /api/v1/ai/schedules/delete  

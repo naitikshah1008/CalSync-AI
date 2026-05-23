@@ -3,3 +3,6 @@ backend/.env
 .env
 __pycache__/
 PROJECT_STATUS.md
+backend/api
+backend/bin/
+.idea/
