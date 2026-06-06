@@ -27,16 +27,16 @@ function updateQuickStats() {
   const hoursPerDayInput = document.getElementById("hoursPerDayInput");
   const daysPerWeekInput = document.getElementById("daysPerWeekInput");
   const dayTypeSelect = document.getElementById("dayTypeSelect");
+  const goal = (goalInput?.value || "").trim();
+  const topicsCount = Array.isArray(window.learningPlanState) ? window.learningPlanState.length : 0;
+  const sessionsCount = Array.isArray(window.scheduleState) ? window.scheduleState.length : 0;
   if (statGoal) {
-    const goal = (goalInput?.value || "").trim();
     statGoal.textContent = goal || "—";
   }
   if (statTopics) {
-    const topicsCount = Array.isArray(window.learningPlanState) ? window.learningPlanState.length : 0;
     statTopics.textContent = String(topicsCount);
   }
   if (statSessions) {
-    const sessionsCount = Array.isArray(window.scheduleState) ? window.scheduleState.length : 0;
     statSessions.textContent = String(sessionsCount);
   }
     if (statHoursPerDay) {
@@ -53,6 +53,27 @@ function updateQuickStats() {
       raw === "both" ? "Both" :
       "-";
   }
+  updateWorkflowSteps({
+    hasGoal: Boolean(goal),
+    hasPlan: topicsCount > 0,
+    hasSchedule: sessionsCount > 0,
+    isSynced: Boolean(document.getElementById("deleteAppliedBtn") && !document.getElementById("deleteAppliedBtn").disabled)
+  });
+}
+
+function updateWorkflowSteps({ hasGoal, hasPlan, hasSchedule, isSynced }) {
+  const steps = [
+    { id: "stepGoal", done: hasGoal, active: !hasGoal },
+    { id: "stepPlan", done: hasPlan, active: hasGoal && !hasPlan },
+    { id: "stepSchedule", done: hasSchedule, active: hasPlan && !hasSchedule },
+    { id: "stepSync", done: isSynced, active: hasSchedule && !isSynced }
+  ];
+  steps.forEach(step => {
+    const el = document.getElementById(step.id);
+    if (!el) return;
+    el.classList.toggle("is-done", step.done);
+    el.classList.toggle("is-active", step.active);
+  });
 }
 
 

@@ -2,70 +2,70 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CalSync AI</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const statusEl = document.getElementById("status");
-    const loginBtn = document.getElementById("loginBtn");
-
-    async function checkAuth() {
-      try {
-        const res = await fetch(`/auth/me`, {
-          credentials: "include"
-        });
-        if (res.ok) {
-          window.location.href = "main.html";
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    loginBtn.addEventListener("click", () => {
-      statusEl.textContent = "Redirecting to Google...";
-      window.location.href = `/auth/google/login`;
-    });
-
-    checkAuth();
-  });
-</script>
 <body>
-  <div class="page-shell">
-    <header class="topbar">
+  <div class="page-shell auth-shell">
+    <header class="topbar auth-topbar">
       <div class="brand-block">
-        <a href="index.html"><img src="assets/logo.png" class="app-logo" alt="Logo" /></a>
-        <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+        <a class="brand-link" href="index.html"><img src="assets/logo.png" class="app-logo" alt="Logo" /></a>
+        <div>
+          <h1>CalSync AI</h1>
+          <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+        </div>
       </div>
     </header>
 
-    <section class="hero-grid" style="grid-template-columns: 1fr; max-width: 500px; margin: auto;">
-      <div class="panel">
-        <div class="panel-inner" style="text-align: center;">
-          
-          <h2 class="hero-title" style="font-size: 28px;">
-            Welcome 👋
-          </h2>
-
+    <main class="auth-main">
+      <section class="panel auth-card">
+        <div class="panel-inner">
+          <p class="eyebrow">Google Calendar connected planning</p>
+          <h2 class="hero-title">Start with your calendar in view.</h2>
           <p class="hero-subtitle">
-            Sign in with your Google account to connect your calendar and start planning.
+            Sign in to generate a learning plan, shape it into a schedule, and sync approved sessions to your calendar.
           </p>
 
-          <div class="action-row" style="justify-content: center;">
-            <button id="loginBtn" class="btn btn-primary">
-              Sign in with Google
-            </button>
+          <div class="action-row action-row-primary">
+            <button id="loginBtn" class="btn btn-primary">Sign in with Google</button>
           </div>
 
-          <p id="status" class="muted-text" style="margin-top: 12px;"></p>
-
+          <p id="status" class="muted-text auth-status"></p>
         </div>
-      </div>
-    </section>
+      </section>
+    </main>
+
     <footer class="app-footer">
       <p>© 2026 Naitik Shah. All rights reserved.</p>
     </footer>
   </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const statusEl = document.getElementById("status");
+      const loginBtn = document.getElementById("loginBtn");
+
+      async function checkAuth() {
+        try {
+          const res = await fetch(`/auth/me`, {
+            credentials: "include"
+          });
+          if (res.ok) {
+            window.location.href = "main.html";
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      loginBtn.addEventListener("click", () => {
+        statusEl.textContent = "Redirecting to Google...";
+        window.location.href = `/auth/google/login`;
+      });
+
+      checkAuth();
+    });
+  </script>
 </body>
 </html>

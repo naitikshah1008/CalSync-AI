@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CalSync AI</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -9,8 +10,11 @@
   <div class="page-shell">
     <header class="topbar">
       <div class="brand-block">
-        <a href="main.html"><img src="assets/logo.png" class="app-logo" alt="Logo" /></a>
-        <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+        <a class="brand-link" href="main.html"><img src="assets/logo.png" class="app-logo" alt="Logo" /></a>
+        <div>
+          <h1>CalSync AI</h1>
+          <p>Plan smarter. Schedule faster. Sync directly with your calendar.</p>
+        </div>
       </div>
 
       <div class="topbar-actions">
@@ -27,7 +31,27 @@
             Generate structured learning plans, turn them into realistic schedules, and apply them directly to your calendar with one workflow.
           </p>
 
+          <div class="workflow-strip" aria-label="Planner workflow">
+            <div class="workflow-step is-active" id="stepGoal">
+              <span class="workflow-index">1</span>
+              <span>Goal</span>
+            </div>
+            <div class="workflow-step" id="stepPlan">
+              <span class="workflow-index">2</span>
+              <span>Plan</span>
+            </div>
+            <div class="workflow-step" id="stepSchedule">
+              <span class="workflow-index">3</span>
+              <span>Schedule</span>
+            </div>
+            <div class="workflow-step" id="stepSync">
+              <span class="workflow-index">4</span>
+              <span>Sync</span>
+            </div>
+          </div>
+
           <div class="goal-form">
+            <label class="input-label" for="goalInput">Learning goal</label>
             <input id="goalInput" class="goal-input" type="text" placeholder="e.g. Learn Go for backend jobs"/>
           </div>
 
@@ -55,7 +79,7 @@
 
           <div class="divider-space"></div>
 
-          <div class="action-row">
+          <div class="action-row action-row-primary">
             <button class="btn btn-primary" id="generatePlanBtn">Generate Learning Plan</button>
             <button class="btn btn-secondary" id="generateScheduleBtn" disabled>Generate Schedule</button>
             <button class="btn btn-success" id="approveBtn" disabled>Approve & Add to Calendar</button>
@@ -67,7 +91,7 @@
       <div class="panel">
         <div class="panel-inner">
           <h3 class="section-title">Quick Snapshot</h3>
-          <p class="section-subtitle">A lightweight overview of your current workspace.</p>
+          <p class="section-subtitle">Current workspace state.</p>
 
           <div class="quick-stats">
             <div class="stat-card">
@@ -131,12 +155,12 @@
       </div>
     </section>
 
-    <section class="panel" style="margin-bottom: 22px;">
+    <section class="panel section-panel">
       <div class="panel-inner">
-        <div class="action-row" style="justify-content: space-between; align-items: center;">
+        <div class="section-toolbar">
           <div>
-            <h3 class="section-title" style="margin-bottom: 4px;">My Calendar</h3>
-            <p class="section-subtitle" style="margin-bottom: 0;">Upcoming events from your connected Google Calendar.</p>
+            <h3 class="section-title">My Calendar</h3>
+            <p class="section-subtitle">Upcoming events from your connected Google Calendar.</p>
           </div>
           <button class="btn btn-secondary" id="refreshEventsBtn">Refresh Events</button>
         </div>
@@ -149,12 +173,12 @@
 
     <section class="panel">
       <div class="panel-inner">
-        <div class="action-row" style="justify-content: space-between; align-items: center;">
+        <div class="section-toolbar">
           <div>
-            <h3 class="section-title" style="margin-bottom: 4px;">Saved History</h3>
-            <p class="section-subtitle" style="margin-bottom: 0;">Your previously generated plans, schedules, and applied calendar events.</p>
+            <h3 class="section-title">Saved History</h3>
+            <p class="section-subtitle">Previously generated plans, schedules, and applied calendar events.</p>
           </div>
-          <button class="btn btn-secondary" id="loadHistoryBtn">Load Saved Plans & Schedules</button>
+          <button class="btn btn-secondary" id="loadHistoryBtn">Refresh Saved Items</button>
         </div>
 
         <div class="divider-space"></div>
