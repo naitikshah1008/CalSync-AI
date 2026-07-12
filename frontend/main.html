@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CalSync AI</title>
-  <link rel="stylesheet" href="styles.css?v=20260712-theme-refresh" />
+  <link rel="stylesheet" href="styles.css?v=20260712-intelligence-panel" />
 </head>
 <body>
   <div class="page-shell">
@@ -90,33 +90,55 @@
 
       <div class="panel">
         <div class="panel-inner">
-          <h3 class="section-title">Quick Snapshot</h3>
-          <p class="section-subtitle">Current workspace state.</p>
+          <h3 class="section-title">Schedule Intelligence</h3>
+          <p class="section-subtitle">Calendar-aware preflight checks before anything is synced.</p>
 
-          <div class="quick-stats">
-            <div class="stat-card">
-              <div class="stat-label">Current Goal</div>
-              <div class="stat-value" id="statGoal">—</div>
+          <div class="intelligence-panel" aria-live="polite">
+            <div class="intelligence-hero">
+              <span class="intelligence-kicker" id="intelligenceModeLabel">Preflight</span>
+              <strong id="intelligenceHeadline">Waiting for schedule inputs</strong>
+              <p id="intelligenceSummary">Add your workload preferences, then generate a plan and schedule to unlock calendar checks.</p>
             </div>
-            <div class="stat-card">
-              <div class="stat-label">Plan Topics</div>
-              <div class="stat-value" id="statTopics">0</div>
+
+            <div class="intelligence-metrics">
+              <div>
+                <span>Calendar load</span>
+                <strong id="calendarLoadValue">—</strong>
+              </div>
+              <div>
+                <span>Conflict risk</span>
+                <strong id="conflictValue">—</strong>
+              </div>
+              <div>
+                <span>Proposed sessions</span>
+                <strong id="proposedSessionValue">0</strong>
+              </div>
             </div>
-            <div class="stat-card">
-              <div class="stat-label">Scheduled Sessions</div>
-              <div class="stat-value" id="statSessions">0</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Hours / Day</div>
-              <div class="stat-value" id="statHoursPerDay">1.5</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Days / Week</div>
-              <div class="stat-value" id="statDaysPerWeek">4</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-label">Study Days</div>
-              <div class="stat-value" id="statDayType">Both</div>
+
+            <div class="insight-list">
+              <div class="insight-item" id="calendarInsight">
+                <span class="insight-marker"></span>
+                <div>
+                  <strong>Calendar load</strong>
+                  <p id="calendarInsightText">Calendar events will appear here after refresh.</p>
+                </div>
+              </div>
+
+              <div class="insight-item" id="conflictInsight">
+                <span class="insight-marker"></span>
+                <div>
+                  <strong>Conflict scan</strong>
+                  <p id="conflictInsightText">Generate a schedule to scan against your calendar.</p>
+                </div>
+              </div>
+
+              <div class="insight-item" id="nextMoveInsight">
+                <span class="insight-marker"></span>
+                <div>
+                  <strong>Recommended next move</strong>
+                  <p id="nextMoveText">Set the workload and generate your learning plan.</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -207,7 +229,7 @@
     </footer>
   </div>
 
-  <script src="main.js?v=20260712-theme-refresh"></script>
-  <script src="planner.js?v=20260712-theme-refresh"></script>
+  <script src="main.js?v=20260712-intelligence-panel"></script>
+  <script src="planner.js?v=20260712-intelligence-panel"></script>
 </body>
 </html>

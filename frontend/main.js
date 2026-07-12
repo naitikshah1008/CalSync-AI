@@ -4,7 +4,9 @@ window.currentCalendarEvents = [];
 
 function formatEventTime(isoOrDate) {
   if (!isoOrDate) return "";
-  return new Date(isoOrDate).toLocaleString();
+  const date = new Date(getDateValue(isoOrDate));
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString();
 }
 
 function escapeHtml(str) {
@@ -16,48 +18,177 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+function getDateValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.dateTime || value.date || "";
+}
+
+function getInterval(item) {
+  const start = new Date(getDateValue(item?.start));
+  const end = new Date(getDateValue(item?.end));
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    return null;
+  }
+  return {
+    start,
+    end,
+    title: item?.topic || item?.summary || "Untitled"
+  };
+}
+
+function formatDay(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "Unknown day";
+  return date.toLocaleDateString(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
+}
+
+function summarizeCalendar(events) {
+  const intervals = (events || [])
+    .map(getInterval)
+    .filter(Boolean);
+  const dayCounts = new Map();
+  intervals.forEach(interval => {
+    const key = interval.start.toISOString().slice(0, 10);
+    const existing = dayCounts.get(key) || { date: interval.start, count: 0 };
+    existing.count += 1;
+    dayCounts.set(key, existing);
+  });
+  const busiest = [...dayCounts.values()]
+    .sort((a, b) => b.count - a.count || a.date - b.date)[0] || null;
+  return {
+    intervals,
+    eventCount: intervals.length,
+    busiest
+  };
+}
+
+function findScheduleConflicts(scheduleItems, calendarEvents) {
+  const scheduleIntervals = (scheduleItems || [])
+    .map(getInterval)
+    .filter(Boolean);
+  const eventIntervals = (calendarEvents || [])
+    .map(getInterval)
+    .filter(Boolean);
+  const conflicts = [];
+  scheduleIntervals.forEach(session => {
+    eventIntervals.forEach(event => {
+      if (session.start < event.end && session.end > event.start) {
+        conflicts.push({ session, event });
+      }
+    });
+  });
+  return conflicts;
+}
+
+function setInsightState(id, state) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove("is-good", "is-warning", "is-danger");
+  if (state) {
+    el.classList.add(state);
+  }
+}
+
 function updateQuickStats() {
-  const statGoal = document.getElementById("statGoal");
-  const statTopics = document.getElementById("statTopics");
-  const statSessions = document.getElementById("statSessions");
-  const statHoursPerDay = document.getElementById("statHoursPerDay");
-  const statDaysPerWeek = document.getElementById("statDaysPerWeek");
-  const statDayType = document.getElementById("statDayType");
+  const intelligenceModeLabel = document.getElementById("intelligenceModeLabel");
+  const intelligenceHeadline = document.getElementById("intelligenceHeadline");
+  const intelligenceSummary = document.getElementById("intelligenceSummary");
+  const calendarLoadValue = document.getElementById("calendarLoadValue");
+  const conflictValue = document.getElementById("conflictValue");
+  const proposedSessionValue = document.getElementById("proposedSessionValue");
+  const calendarInsightText = document.getElementById("calendarInsightText");
+  const conflictInsightText = document.getElementById("conflictInsightText");
+  const nextMoveText = document.getElementById("nextMoveText");
   const goalInput = document.getElementById("goalInput");
   const hoursPerDayInput = document.getElementById("hoursPerDayInput");
   const daysPerWeekInput = document.getElementById("daysPerWeekInput");
   const dayTypeSelect = document.getElementById("dayTypeSelect");
   const goal = (goalInput?.value || "").trim();
+  const dayType = dayTypeSelect?.value || "";
+  const days = Number(daysPerWeekInput?.value || 0);
+  const hours = Number(hoursPerDayInput?.value || 0);
   const topicsCount = Array.isArray(window.learningPlanState) ? window.learningPlanState.length : 0;
   const sessionsCount = Array.isArray(window.scheduleState) ? window.scheduleState.length : 0;
-  if (statGoal) {
-    statGoal.textContent = goal || "—";
+  const isSynced = Boolean(document.getElementById("deleteAppliedBtn") && !document.getElementById("deleteAppliedBtn").disabled);
+  const hasGoal = Boolean(goal);
+  const hasPreferences = Boolean(dayType && days > 0 && hours > 0);
+  const hasPlan = topicsCount > 0;
+  const hasSchedule = sessionsCount > 0;
+  const calendarSummary = summarizeCalendar(window.currentCalendarEvents || []);
+  const conflicts = findScheduleConflicts(window.scheduleState || [], window.currentCalendarEvents || []);
+  const conflictCount = conflicts.length;
+  const weeklyHours = hasPreferences ? days * hours : 0;
+  const calendarInsight =
+    calendarSummary.eventCount === 0 ? "No calendar events are loaded for the next 7 days." :
+    calendarSummary.busiest ? `${calendarSummary.eventCount} upcoming event${calendarSummary.eventCount === 1 ? "" : "s"}. Busiest day: ${formatDay(calendarSummary.busiest.date)} with ${calendarSummary.busiest.count} event${calendarSummary.busiest.count === 1 ? "" : "s"}.` :
+    `${calendarSummary.eventCount} upcoming event${calendarSummary.eventCount === 1 ? "" : "s"} loaded.`;
+  const conflictInsight =
+    !hasSchedule ? "Generate a schedule to scan it against your calendar." :
+    conflictCount > 0 ? `${conflictCount} overlap${conflictCount === 1 ? "" : "s"} found. First: ${conflicts[0].session.title} overlaps ${conflicts[0].event.title} on ${formatDay(conflicts[0].session.start)}.` :
+    calendarSummary.eventCount === 0 ? "No loaded calendar events to compare against. Refresh events before syncing." :
+    "No overlaps detected between the proposed schedule and loaded calendar events.";
+  const headline =
+    isSynced ? "Calendar sync complete" :
+    conflictCount > 0 ? "Conflict risk detected" :
+    hasSchedule ? "Schedule is ready for review" :
+    hasPlan ? "Plan is ready for scheduling" :
+    hasGoal && hasPreferences ? "Ready to generate a plan" :
+    "Waiting for schedule inputs";
+  const summary =
+    isSynced ? "The applied schedule is live in your calendar. Keep saved history as the source of truth for future edits." :
+    conflictCount > 0 ? "Adjust the conflicting sessions before applying anything to Google Calendar." :
+    hasSchedule ? "Review session timing and subtopics, then save and approve when the calendar scan looks clean." :
+    hasPlan ? "Generate a schedule so CalSync can compare proposed sessions against your calendar." :
+    hasGoal && hasPreferences ? `Workload target: ${weeklyHours} hour${weeklyHours === 1 ? "" : "s"} per week. Generate the plan next.` :
+    "Set a goal and workload preferences to unlock calendar-aware schedule checks.";
+  const nextMove =
+    isSynced ? "Monitor saved history and delete applied events only if you want to unsync." :
+    conflictCount > 0 ? "Move the first conflicting session, then rerun the final review before syncing." :
+    hasSchedule ? "Save the schedule, then approve it once the session timing looks right." :
+    hasPlan ? "Generate the schedule so conflict scanning can run." :
+    hasGoal && hasPreferences ? "Generate the learning plan." :
+    hasGoal ? "Choose study days, days per week, and hours per day." :
+    "Start by defining the learning goal and workload.";
+
+  if (intelligenceModeLabel) {
+    intelligenceModeLabel.textContent = conflictCount > 0 ? "Action needed" : hasSchedule ? "Preflight clear" : "Preflight";
   }
-  if (statTopics) {
-    statTopics.textContent = String(topicsCount);
+  if (intelligenceHeadline) {
+    intelligenceHeadline.textContent = headline;
   }
-  if (statSessions) {
-    statSessions.textContent = String(sessionsCount);
+  if (intelligenceSummary) {
+    intelligenceSummary.textContent = summary;
   }
-    if (statHoursPerDay) {
-    statHoursPerDay.textContent = hoursPerDayInput?.value || "-";
+  if (calendarLoadValue) {
+    calendarLoadValue.textContent = calendarSummary.eventCount ? `${calendarSummary.eventCount}` : "0";
   }
-  if (statDaysPerWeek) {
-    statDaysPerWeek.textContent = daysPerWeekInput?.value || "-";
+  if (conflictValue) {
+    conflictValue.textContent = !hasSchedule ? "Pending" : conflictCount > 0 ? `${conflictCount}` : "Clear";
   }
-  if (statDayType) {
-    const raw = dayTypeSelect?.value || "";
-    statDayType.textContent =
-      raw === "weekdays" ? "Weekdays" :
-      raw === "weekends" ? "Weekends" :
-      raw === "both" ? "Both" :
-      "-";
+  if (proposedSessionValue) {
+    proposedSessionValue.textContent = String(sessionsCount);
   }
+  if (calendarInsightText) {
+    calendarInsightText.textContent = calendarInsight;
+  }
+  if (conflictInsightText) {
+    conflictInsightText.textContent = conflictInsight;
+  }
+  if (nextMoveText) {
+    nextMoveText.textContent = nextMove;
+  }
+  setInsightState("calendarInsight", calendarSummary.eventCount > 0 ? "is-good" : "is-warning");
+  setInsightState("conflictInsight", !hasSchedule ? "is-warning" : conflictCount > 0 ? "is-danger" : "is-good");
+  setInsightState("nextMoveInsight", isSynced || (hasSchedule && conflictCount === 0) ? "is-good" : "is-warning");
   updateWorkflowSteps({
-    hasGoal: Boolean(goal),
-    hasPlan: topicsCount > 0,
-    hasSchedule: sessionsCount > 0,
-    isSynced: Boolean(document.getElementById("deleteAppliedBtn") && !document.getElementById("deleteAppliedBtn").disabled)
+    hasGoal,
+    hasPlan,
+    hasSchedule,
+    isSynced
   });
 }
 
@@ -132,13 +263,16 @@ async function loadEvents() {
     if (events.length === 0) {
       statusEl.textContent = "No upcoming events found.";
       renderCalendarEvents([]);
+      updateQuickStats();
       return;
     }
     statusEl.textContent = `Loaded ${events.length} event(s).`;
     renderCalendarEvents(events);
+    updateQuickStats();
   } catch (err) {
     console.error(err);
     statusEl.textContent = "Network error while loading events.";
+    updateQuickStats();
   }
 }
 
@@ -169,9 +303,6 @@ window.addEventListener("DOMContentLoaded", async () => {
   }
   if (logoutBtn) {
     logoutBtn.addEventListener("click", logout);
-  }
-  if (goalInput) {
-    goalInput.addEventListener("input", updateQuickStats);
   }
   const hoursPerDayInput = document.getElementById("hoursPerDayInput");
   const daysPerWeekInput = document.getElementById("daysPerWeekInput");
