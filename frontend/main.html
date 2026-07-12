@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CalSync AI</title>
-  <link rel="stylesheet" href="styles.css?v=20260712-intelligence-panel" />
+  <script src="theme.js?v=20260712-theme-toggle"></script>
+  <link rel="stylesheet" href="styles.css?v=20260712-theme-toggle" />
 </head>
 <body>
   <div class="page-shell">
@@ -17,6 +18,10 @@
       </div>
 
       <div class="topbar-actions">
+        <button class="theme-toggle" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch theme">
+          <span class="theme-toggle-icon" aria-hidden="true"></span>
+          <span data-theme-label>Dark</span>
+        </button>
         <div class="user-pill" id="userInfo">Signed in</div>
         <button class="btn btn-secondary" id="logoutBtn">Logout</button>
       </div>
@@ -228,7 +233,7 @@
     </footer>
   </div>
 
-  <script src="main.js?v=20260712-intelligence-panel"></script>
-  <script src="planner.js?v=20260712-intelligence-panel"></script>
+  <script src="main.js?v=20260712-theme-toggle"></script>
+  <script src="planner.js?v=20260712-theme-toggle"></script>
 </body>
 </html>
